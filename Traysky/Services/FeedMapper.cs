@@ -75,6 +75,15 @@ public static class FeedMapper
             : profile.DisplayName.Trim();
     }
 
+    /// <summary>Projects a typeahead search result onto the ComposeBox '@' suggestion popup's item shape.</summary>
+    public static MentionSuggestionItem ToMentionSuggestion(ProfileViewBasic profile) => new()
+    {
+        Did = profile.Did.ToString(),
+        Handle = profile.Handle?.ToString() ?? string.Empty,
+        DisplayName = string.IsNullOrWhiteSpace(profile.DisplayName) ? string.Empty : profile.DisplayName.Trim(),
+        AvatarUri = profile.Avatar
+    };
+
     public static IEnumerable<FacetInput> ToFacetInputs(IEnumerable<Facet>? facets)
     {
         if (facets is null)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Traysky.Models;
 using Windows.Foundation.Collections;
 using Windows.Storage;
@@ -26,6 +27,7 @@ public static class SettingsService
     private const string ToastLikesRepostsKey = "ToastLikesReposts";
     private const string LastFeedKeyKey = "LastFeedKey";
     private const string ComposeDraftKey = "ComposeDraft";
+    private const string RecentHashtagsKey = "RecentHashtags";
 
     /// <summary>Raised when <see cref="PollIntervalSeconds"/> changes so the poller can re-arm its timer.</summary>
     public static event EventHandler? PollIntervalChanged;
@@ -139,6 +141,17 @@ public static class SettingsService
     {
         get => GetString(ComposeDraftKey, string.Empty);
         set => Set(ComposeDraftKey, value ?? string.Empty);
+    }
+
+    /// <summary>Tags chosen from the compose box's '#' suggestion popup, most-recent first (see <see cref="HashtagSuggestionPolicy"/>).</summary>
+    public static IReadOnlyList<string> RecentHashtags
+    {
+        get
+        {
+            string raw = GetString(RecentHashtagsKey, string.Empty);
+            return raw.Length == 0 ? [] : raw.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        }
+        set => Set(RecentHashtagsKey, string.Join('\n', value ?? []));
     }
 
     private static TrayClickAction GetAction(string key, TrayClickAction fallback) =>

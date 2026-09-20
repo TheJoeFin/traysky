@@ -5,6 +5,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:animations="using:CommunityToolkit.WinUI.Animations"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="using:Traysky.Helpers"
     xmlns:items="using:Traysky.ViewModels.Items"
@@ -12,6 +13,32 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
+        <DataTemplate x:Key="MentionSuggestionTemplate">
+            <StackPanel Orientation="Horizontal" Padding="8,6" Spacing="8">
+                <PersonPicture
+                    Width="28"
+                    Height="28"
+                    DisplayName="{Binding NameOrHandle}"
+                    ProfilePicture="{Binding AvatarImage}" />
+                <StackPanel VerticalAlignment="Center" Spacing="0">
+                    <TextBlock FontWeight="SemiBold" Text="{Binding NameOrHandle}" />
+                    <TextBlock Style="{StaticResource SecondaryTextStyle}" Text="{Binding HandleDisplay}" />
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="HashtagSuggestionTemplate">
+            <StackPanel Orientation="Horizontal" Padding="8,6" Spacing="8">
+                <FontIcon FontSize="14" Glyph="&#xE8EC;" />
+                <TextBlock VerticalAlignment="Center" Text="{Binding Display}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <helpers:ComposeSuggestionTemplateSelector
+            x:Key="ComposeSuggestionTemplateSelector"
+            HashtagTemplate="{StaticResource HashtagSuggestionTemplate}"
+            MentionTemplate="{StaticResource MentionSuggestionTemplate}" />
+
         <DataTemplate x:Key="AttachmentTemplate" x:DataType="items:ComposeAttachmentItem">
             <Border
                 Width="88"
@@ -91,20 +118,24 @@
                 </Button>
             </Grid>
 
-            <TextBox
+            <controls:RichSuggestBox
                 x:Name="Editor"
-                AcceptsReturn="True"
                 BorderThickness="0"
+                ClipboardCopyFormat="PlainText"
+                ClipboardPasteFormat="PlainText"
+                DisabledFormattingAccelerators="All"
                 GotFocus="Editor_GotFocus"
-                IsSpellCheckEnabled="True"
+                ItemTemplateSelector="{StaticResource ComposeSuggestionTemplateSelector}"
                 LostFocus="Editor_LostFocus"
                 MaxHeight="160"
                 MinHeight="{x:Bind EditorMinHeight(ViewModel.IsExpanded), Mode=OneWay}"
                 PlaceholderText="{x:Bind ViewModel.Placeholder, Mode=OneWay}"
+                Prefixes="@#"
                 PreviewKeyDown="Editor_PreviewKeyDown"
                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                Text="{x:Bind ViewModel.Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                TextWrapping="Wrap" />
+                SuggestionChosen="Editor_SuggestionChosen"
+                SuggestionRequested="Editor_SuggestionRequested"
+                TextChanged="Editor_TextChanged" />
 
             <InfoBar
                 IsClosable="False"

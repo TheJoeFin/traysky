@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using idunno.AtProto;
 using idunno.AtProto.Repo;
 using idunno.Bluesky;
+using idunno.Bluesky.Actor;
 using idunno.Bluesky.Embed;
 using idunno.Bluesky.Video;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -308,6 +309,58 @@ public sealed partial class ComposeViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(Text) && !HasContext && !HasAttachments)
             IsExpanded = false;
     }
+
+    /// <summary>
+    /// Live results for the RichSuggestBox '@' popup. Debounced slightly since it fires on every
+    /// keystroke; <see cref="Traysky.Controls.ComposeBox"/> also discards a stale response that
+    /// lands after a newer request, so a slow reply here just never gets shown.
+    /// </summary>
+    public async Task<IReadOnlyList<MentionSuggestionItem>> SearchMentionsAsync(string query)
+    {
+        string trimmed = query.Trim();
+        if (trimmed.Length == 0)
+            return [];
+
+        try
+        {
+            await Task.Delay(150);
+
+            AtProtoHttpResult<PagedViewReadOnlyCollection<ProfileViewBasic>> result =
+                await BlueskySessionService.Instance.Agent.SearchActorsTypeahead(trimmed, limit: 8);
+
+            if (!result.Succeeded || result.Result is null)
+                return [];
+
+            return result.Result.Select(FeedMapper.ToMentionSuggestion).ToList();
+        }
+        catch (Exception ex)
+        {
+            LogService.Warn("Compose", $"Mention search for '{trimmed}' failed: {ex.Message}");
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// Results for the RichSuggestBox '#' popup. Bluesky has no tag-search API, so this is just
+    /// the user's own recently-used tags (<see cref="SettingsService.RecentHashtags"/>) filtered
+    /// by what they've typed, plus the typed text itself so it can always be picked as a token.
+    /// </summary>
+    public IReadOnlyList<HashtagSuggestionItem> SearchHashtags(string query)
+    {
+        string normalized = HashtagSuggestionPolicy.Normalize(query);
+        IReadOnlyList<string> matches = HashtagSuggestionPolicy.Filter(SettingsService.RecentHashtags, normalized);
+
+        var results = new List<HashtagSuggestionItem>(matches.Count + 1);
+        if (normalized.Length > 0 && !matches.Any(t => string.Equals(t, normalized, StringComparison.OrdinalIgnoreCase)))
+            results.Add(new HashtagSuggestionItem { Tag = normalized, IsRecent = false });
+
+        results.AddRange(matches.Select(t => new HashtagSuggestionItem { Tag = t, IsRecent = true }));
+        return results;
+    }
+
+    /// <summary>Remembers a chosen '#' tag so it resurfaces next time the user starts typing one like it.</summary>
+    public void RecordHashtagUsed(string tag) =>
+        SettingsService.RecentHashtags = HashtagSuggestionPolicy.WithRecentTag(SettingsService.RecentHashtags, tag);
 
     partial void OnTextChanged(string value)
     {
