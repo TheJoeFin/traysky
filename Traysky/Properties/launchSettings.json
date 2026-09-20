@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Traysky (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Traysky (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

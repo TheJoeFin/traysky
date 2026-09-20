@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="Traysky.Controls.PostCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:animations="using:CommunityToolkit.WinUI.Animations"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="using:Traysky.Helpers"
+    xmlns:local="using:Traysky.Controls"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid
+        x:Name="Root"
+        Padding="12,10,12,4"
+        Background="Transparent"
+        ColumnSpacing="10"
+        Tapped="Root_Tapped">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--  ♲ Reposted by …  -->
+        <StackPanel
+            Grid.Row="0"
+            Grid.ColumnSpan="2"
+            Margin="0,0,0,2"
+            Orientation="Horizontal"
+            Spacing="6"
+            Visibility="{x:Bind Post.HasRepostedBy, Mode=OneWay}">
+            <FontIcon
+                FontSize="11"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Glyph="&#xE8EE;" />
+            <TextBlock Style="{StaticResource SecondaryTextStyle}" TextTrimming="CharacterEllipsis">
+                <Run Text="Reposted by" />
+                <Run FontWeight="SemiBold" Text="{x:Bind Post.RepostedBy, Mode=OneWay}" />
+            </TextBlock>
+        </StackPanel>
+
+        <PersonPicture
+            Grid.Row="1"
+            Grid.RowSpan="4"
+            Grid.Column="0"
+            Width="{StaticResource AvatarSize}"
+            Height="{StaticResource AvatarSize}"
+            VerticalAlignment="Top"
+            DisplayName="{x:Bind Post.AuthorDisplayName, Mode=OneWay}"
+            ProfilePicture="{x:Bind helpers:BindHelpers.ImageFromUri(Post.AvatarUri), Mode=OneWay}"
+            Tapped="Avatar_Tapped"
+            ToolTipService.ToolTip="View profile" />
+
+        <!--  Name, handle, time  -->
+        <Grid
+            Grid.Row="1"
+            Grid.Column="1"
+            ColumnSpacing="6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                Grid.Column="0"
+                MaxWidth="160"
+                VerticalAlignment="Center"
+                FontWeight="SemiBold"
+                Text="{x:Bind Post.AuthorDisplayName, Mode=OneWay}"
+                TextTrimming="CharacterEllipsis" />
+            <TextBlock
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Style="{StaticResource SecondaryTextStyle}"
+                Text="{x:Bind Post.HandleDisplay, Mode=OneWay}"
+                TextTrimming="CharacterEllipsis" />
+            <TextBlock
+                Grid.Column="2"
+                VerticalAlignment="Center"
+                Style="{StaticResource SecondaryTextStyle}"
+                Text="{x:Bind Post.TimeAgo, Mode=OneWay}"
+                ToolTipService.ToolTip="{x:Bind Post.AbsoluteTime, Mode=OneWay}" />
+        </Grid>
+
+        <TextBlock
+            Grid.Row="2"
+            Grid.Column="1"
+            Margin="0,2,0,0"
+            Style="{StaticResource SecondaryTextStyle}"
+            Text="{x:Bind Post.ReplyingToDisplay, Mode=OneWay}"
+            Visibility="{x:Bind Post.HasReplyingTo, Mode=OneWay}" />
+
+        <RichTextBlock
+            x:Name="PostText"
+            Grid.Row="3"
+            Grid.Column="1"
+            Margin="0,4,0,0"
+            Style="{StaticResource PostTextStyle}"
+            Visibility="{x:Bind Post.HasText, Mode=OneWay}" />
+
+        <local:EmbedPresenter
+            Grid.Row="4"
+            Grid.Column="1"
+            Margin="0,8,0,0"
+            Embed="{x:Bind Post.Embed, Mode=OneWay}"
+            FallbackUrl="{x:Bind Post.WebUrl, Mode=OneWay}"
+            Visibility="{x:Bind Post.HasEmbed, Mode=OneWay}" />
+
+        <!--  Actions  -->
+        <Grid
+            Grid.Row="5"
+            Grid.Column="1"
+            Margin="-6,4,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <StackPanel Orientation="Horizontal" Spacing="2">
+                <Button
+                    Click="Reply_Click"
+                    Style="{StaticResource PostActionButtonStyle}"
+                    ToolTipService.ToolTip="Reply">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <FontIcon FontSize="14" Glyph="&#xE97A;" />
+                        <TextBlock Text="{x:Bind Post.ReplyCountDisplay, Mode=OneWay}" />
+                    </StackPanel>
+                </Button>
+                <Button
+                    Click="Repost_Click"
+                    Style="{StaticResource PostActionButtonStyle}"
+                    ToolTipService.ToolTip="Repost">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <FontIcon
+                            FontSize="14"
+                            Foreground="{x:Bind RepostBrush(Post.IsReposted), Mode=OneWay}"
+                            Glyph="&#xE8EE;" />
+                        <TextBlock Foreground="{x:Bind RepostBrush(Post.IsReposted), Mode=OneWay}" Text="{x:Bind Post.RepostCountDisplay, Mode=OneWay}" />
+                    </StackPanel>
+                </Button>
+                <Button
+                    Click="Like_Click"
+                    Style="{StaticResource PostActionButtonStyle}"
+                    ToolTipService.ToolTip="Like">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <FontIcon
+                            FontSize="14"
+                            Foreground="{x:Bind LikeBrush(Post.IsLiked), Mode=OneWay}"
+                            Glyph="{x:Bind Post.LikeGlyph, Mode=OneWay}" />
+                        <TextBlock Foreground="{x:Bind LikeBrush(Post.IsLiked), Mode=OneWay}" Text="{x:Bind Post.LikeCountDisplay, Mode=OneWay}" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <Button
+                HorizontalAlignment="Right"
+                Style="{StaticResource PostActionButtonStyle}"
+                ToolTipService.ToolTip="More">
+                <FontIcon FontSize="14" Glyph="&#xE712;" />
+                <Button.Flyout>
+                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                        <MenuFlyoutItem Click="Quote_Click" Text="Quote post">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE9B7;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Click="CopyLink_Click" Text="Copy link">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE71B;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Click="CopyText_Click" Text="Copy text">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE8C8;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem Click="OpenInBrowser_Click" Text="Open on bsky.app">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE8A7;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Click="OpenProfile_Click" Text="View profile">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE77B;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
+        </Grid>
+
+        <!--  Inline reply box: a hidden child of every card, popped visible right below the
+              post it's replying to. Shown/hidden from code-behind (see UpdateInlineReplyVisibility)
+              rather than x:Bind - see PostCard's constructor for why.  -->
+        <local:ComposeBox
+            x:Name="InlineReply"
+            Grid.Row="6"
+            Grid.Column="1"
+            animations:Implicit.HideAnimations="{StaticResource ImplicitFadeHideAnimations}"
+            animations:Implicit.ShowAnimations="{StaticResource ImplicitFadeShowAnimations}"
+            Visibility="Collapsed" />
+    </Grid>
+</UserControl>

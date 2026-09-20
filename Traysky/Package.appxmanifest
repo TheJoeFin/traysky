@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  IgnorableNamespaces="uap uap5 rescap com desktop">
+
+  <Identity
+    Name="40087JoeFinApps.Traysky"
+    Publisher="CN=153F3B0F-BA3D-4964-8098-71AC78A1DF6A"
+    Version="0.1.0.0" />
+
+  <mp:PhoneIdentity PhoneProductId="6d2a9f7e-3c41-4b8a-9d0e-5b1f2c7a8e43" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+
+  <Properties>
+    <DisplayName>Traysky</DisplayName>
+    <PublisherDisplayName>JoeFinApps</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="x-generate"/>
+  </Resources>
+
+  <Applications>
+    <Application Id="App"
+      Executable="$targetnametoken$.exe"
+      EntryPoint="$targetentrypoint$">
+      <uap:VisualElements
+        DisplayName="Traysky"
+        Description="Bluesky in your system tray"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+
+      <Extensions>
+        <!-- TaskId must stay "TrayskyStartup": changing it would break the saved startup state of existing installs -->
+        <uap5:Extension Category="windows.startupTask">
+          <uap5:StartupTask TaskId="TrayskyStartup" Enabled="false" DisplayName="Traysky" />
+        </uap5:Extension>
+
+        <!-- App notifications (toasts): the CLSID Windows activates when a toast is clicked, and the
+             COM server that CLSID maps to. Both must carry the same GUID. -->
+        <desktop:Extension Category="windows.toastNotificationActivation">
+          <desktop:ToastNotificationActivation ToastActivatorCLSID="7F3A2C61-9B4E-4D2A-8E5F-1C6B0D9A3E27" />
+        </desktop:Extension>
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:ExeServer Executable="Traysky.exe" DisplayName="Traysky" Arguments="----AppNotificationActivated:">
+              <com:Class Id="7F3A2C61-9B4E-4D2A-8E5F-1C6B0D9A3E27" />
+            </com:ExeServer>
+          </com:ComServer>
+        </com:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

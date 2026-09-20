@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Platforms>x64;ARM64</Platforms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.4.1" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.4.1" />
+  </ItemGroup>
+
+  <!--
+    The app project targets net10.0-windows10.0.19041.0 and pulls in WinUI/WinRT, which cannot
+    be loaded by a plain test host. Rather than reference it, link in the individual files that
+    are deliberately free of platform dependencies. Keep this list small: anything that needs
+    ApplicationData, DispatcherQueue or the Bluesky agent does not belong here.
+  -->
+  <ItemGroup>
+    <Compile Include="..\Traysky\Models\TrayClickAction.cs" Link="Models\TrayClickAction.cs" />
+    <Compile Include="..\Traysky\Models\ShellDestination.cs" Link="Models\ShellDestination.cs" />
+    <Compile Include="..\Traysky\Models\PersistedSession.cs" Link="Models\PersistedSession.cs" />
+    <Compile Include="..\Traysky\Services\TrayClickPolicy.cs" Link="Services\TrayClickPolicy.cs" />
+    <Compile Include="..\Traysky\Services\FacetSegmenter.cs" Link="Services\FacetSegmenter.cs" />
+    <Compile Include="..\Traysky\Services\RelativeTimeFormatter.cs" Link="Services\RelativeTimeFormatter.cs" />
+    <Compile Include="..\Traysky\Services\PostTextPolicy.cs" Link="Services\PostTextPolicy.cs" />
+    <Compile Include="..\Traysky\Services\UnreadBadgePolicy.cs" Link="Services\UnreadBadgePolicy.cs" />
+    <Compile Include="..\Traysky\Services\NotificationGroupingPolicy.cs" Link="Services\NotificationGroupingPolicy.cs" />
+    <Compile Include="..\Traysky\Services\BlueskyLinks.cs" Link="Services\BlueskyLinks.cs" />
+    <Compile Include="..\Traysky\Services\PollBackoffPolicy.cs" Link="Services\PollBackoffPolicy.cs" />
+    <Compile Include="..\Traysky\Services\ComposeAttachmentPolicy.cs" Link="Services\ComposeAttachmentPolicy.cs" />
+  </ItemGroup>
+
+</Project>

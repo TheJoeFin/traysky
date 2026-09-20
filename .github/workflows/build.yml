@@ -1,0 +1,33 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore Traysky.slnx
+      
+    - name: Build
+      run: dotnet build Traysky.slnx --configuration Release --no-restore /p:PublishReadyToRun=false /p:Platform=x64
+
+    - name: Test
+      run: dotnet test Traysky.Tests/Traysky.Tests.csproj --configuration Release --no-build /p:Platform=x64

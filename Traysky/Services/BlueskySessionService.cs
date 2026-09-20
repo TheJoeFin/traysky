@@ -1,0 +1,366 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using idunno.AtProto;
+using idunno.AtProto.Authentication;
+using idunno.AtProto.Events;
+using idunno.Bluesky;
+using idunno.Bluesky.Actor;
+using Microsoft.UI.Dispatching;
+using System;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+using Traysky.Models;
+
+namespace Traysky.Services;
+
+public enum LoginOutcome
+{
+    Success,
+
+    /// <summary>The account has email two-factor auth; ask for the code and call login again with it.</summary>
+    NeedsAuthFactor,
+
+    Failed
+}
+
+/// <summary>
+/// Owns the one <see cref="BlueskyAgent"/> the app uses and everything about "who is signed
+/// in": login, restore-on-launch, logout, and the profile bits the UI shows. Observable
+/// properties change on the UI thread; the agent's own events arrive on thread-pool threads
+/// and are marshalled through the dispatcher captured at construction.
+/// </summary>
+public sealed partial class BlueskySessionService : ObservableObject
+{
+    private static readonly Lazy<BlueskySessionService> _instance = new(() => new BlueskySessionService());
+
+    public static BlueskySessionService Instance => _instance.Value;
+
+    private readonly DispatcherQueue _dispatcher;
+    private readonly BlueskyAgent _agent;
+
+    /// <summary>Set while a login/restore is in flight so the agent's events do not double-fire UI updates.</summary>
+    private int _transitioning;
+
+    private BlueskySessionService()
+    {
+        _dispatcher = DispatcherQueue.GetForCurrentThread()
+            ?? throw new InvalidOperationException("BlueskySessionService must be created on the UI thread.");
+
+        string version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
+
+        _agent = new BlueskyAgent(new BlueskyAgentOptions
+        {
+            HttpClientOptions = new HttpClientOptions
+            {
+                HttpUserAgent = $"Traysky/{version} (+https://github.com/TheJoeFin/Traysky)",
+                Timeout = TimeSpan.FromSeconds(30)
+            }
+        });
+
+        _agent.Authenticated += OnAuthenticated;
+        _agent.CredentialsUpdated += OnCredentialsUpdated;
+        _agent.TokenRefreshFailed += OnTokenRefreshFailed;
+        _agent.Unauthenticated += OnUnauthenticated;
+    }
+
+    /// <summary>The shared agent. Callers check <see cref="IsSignedIn"/> first.</summary>
+    public BlueskyAgent Agent => _agent;
+
+    [ObservableProperty]
+    public partial bool IsSignedIn { get; private set; }
+
+    /// <summary>True from launch until the saved session has been tried, so the UI shows a spinner instead of the login page for a moment.</summary>
+    [ObservableProperty]
+    public partial bool IsRestoring { get; private set; }
+
+    [ObservableProperty]
+    public partial string? Did { get; private set; }
+
+    [ObservableProperty]
+    public partial string? Handle { get; private set; }
+
+    [ObservableProperty]
+    public partial string? DisplayName { get; private set; }
+
+    [ObservableProperty]
+    public partial Uri? AvatarUri { get; private set; }
+
+    /// <summary>Raised on the UI thread after a successful login or restore.</summary>
+    public event EventHandler? SignedIn;
+
+    /// <summary>Raised on the UI thread after logout or when the refresh token stopped working.</summary>
+    public event EventHandler? SignedOut;
+
+    /// <summary>
+    /// Restores the previous session from the encrypted refresh token, if there is one.
+    /// Returns false (and clears the store) when the token no longer works.
+    /// </summary>
+    public async Task<bool> TryRestoreAsync(CancellationToken cancellationToken = default)
+    {
+        if (PreviewMode.IsEnabled)
+        {
+            await OnUiAsync(() =>
+            {
+                Handle = PreviewMode.Handle;
+                DisplayName = "Preview Account";
+                IsSignedIn = true;
+                SignedIn?.Invoke(this, EventArgs.Empty);
+            }).ConfigureAwait(false);
+            return true;
+        }
+
+        PersistedSession? saved = SessionStore.Load();
+        if (saved is null)
+            return false;
+
+        IsRestoring = true;
+        Interlocked.Exchange(ref _transitioning, 1);
+
+        try
+        {
+            if (!Enum.TryParse(saved.AuthenticationType, out AuthenticationType authType))
+                authType = AuthenticationType.UsernamePassword;
+
+            AtProtoCredential credential = AtProtoCredential.Create(
+                service: new Uri(saved.Service),
+                authenticationType: authType,
+                refreshToken: saved.RefreshToken,
+                dPoPProofKey: saved.DPoPProofKey,
+                dPoPNonce: saved.DPoPNonce);
+
+            bool ok = await _agent.RefreshCredentials(credential, cancellationToken).ConfigureAwait(false);
+
+            if (!ok)
+            {
+                LogService.Warn("Session", "Saved session could not be refreshed; clearing it");
+                SessionStore.Clear();
+                await OnUiAsync(() => ApplySignedOut()).ConfigureAwait(false);
+                return false;
+            }
+
+            // The handle we saved is good enough to render the tray tooltip immediately; the
+            // profile fetch fills in the rest.
+            await OnUiAsync(() => ApplySignedIn(saved.Handle)).ConfigureAwait(false);
+            await LoadProfileAsync(cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LogService.Error("Session", "Restore failed", ex);
+            await OnUiAsync(() => ApplySignedOut()).ConfigureAwait(false);
+            return false;
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _transitioning, 0);
+            await OnUiAsync(() => IsRestoring = false).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Signs in with a handle (or DID) and an app password. <paramref name="authFactorToken"/>
+    /// is the emailed code, only needed after a <see cref="LoginOutcome.NeedsAuthFactor"/>.
+    /// </summary>
+    public async Task<(LoginOutcome Outcome, string? Error)> LoginAsync(
+        string handle,
+        string appPassword,
+        string? authFactorToken = null,
+        CancellationToken cancellationToken = default)
+    {
+        string identifier = BlueskyLinks.NormalizeHandle(handle);
+        if (identifier.Length == 0 || string.IsNullOrEmpty(appPassword))
+            return (LoginOutcome.Failed, "Enter your handle and an app password.");
+
+        Interlocked.Exchange(ref _transitioning, 1);
+        try
+        {
+            AtProtoHttpResult<bool> result = await _agent.Login(
+                identifier,
+                appPassword,
+                authFactorToken: string.IsNullOrWhiteSpace(authFactorToken) ? null : authFactorToken.Trim(),
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (result.Succeeded)
+            {
+                LogService.Info("Session", $"Signed in as {identifier}");
+                await OnUiAsync(() => ApplySignedIn(identifier)).ConfigureAwait(false);
+                await LoadProfileAsync(cancellationToken).ConfigureAwait(false);
+                return (LoginOutcome.Success, null);
+            }
+
+            string? error = result.AtErrorDetail?.Error;
+            string? message = result.AtErrorDetail?.Message;
+
+            if (string.Equals(error, "AuthFactorTokenRequired", StringComparison.OrdinalIgnoreCase))
+                return (LoginOutcome.NeedsAuthFactor, null);
+
+            LogService.Warn("Session", $"Login failed: {(int)result.StatusCode} {error} {message}");
+
+            string friendly = result.StatusCode switch
+            {
+                System.Net.HttpStatusCode.Unauthorized => "That handle and app password didn't match.",
+                System.Net.HttpStatusCode.TooManyRequests => "Too many attempts. Wait a few minutes and try again.",
+                0 => "Couldn't reach Bluesky. Check your connection.",
+                _ => string.IsNullOrEmpty(message) ? $"Sign in failed ({(int)result.StatusCode})." : message
+            };
+            return (LoginOutcome.Failed, friendly);
+        }
+        catch (Exception ex)
+        {
+            LogService.Error("Session", "Login threw", ex);
+            return (LoginOutcome.Failed, "Couldn't reach Bluesky. Check your connection.");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _transitioning, 0);
+        }
+    }
+
+    public async Task LogoutAsync()
+    {
+        Interlocked.Exchange(ref _transitioning, 1);
+        try
+        {
+            SessionStore.Clear();
+            if (_agent.IsAuthenticated)
+                await _agent.Logout().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            LogService.Warn("Session", $"Logout error (continuing): {ex.Message}");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _transitioning, 0);
+        }
+
+        await OnUiAsync(ApplySignedOut).ConfigureAwait(false);
+    }
+
+    private async Task LoadProfileAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (_agent.Did is null)
+                return;
+
+            AtProtoHttpResult<ProfileViewDetailed> profile = await _agent.GetProfile(_agent.Did, cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (!profile.Succeeded || profile.Result is null)
+                return;
+
+            ProfileViewDetailed p = profile.Result;
+            await OnUiAsync(() =>
+            {
+                Handle = p.Handle?.ToString();
+                DisplayName = string.IsNullOrWhiteSpace(p.DisplayName) ? p.Handle?.ToString() : p.DisplayName;
+                AvatarUri = p.Avatar;
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            LogService.Warn("Session", $"Profile load failed: {ex.Message}");
+        }
+    }
+
+    private void ApplySignedIn(string? handle)
+    {
+        Did = _agent.Did?.ToString();
+        Handle = handle;
+        DisplayName ??= handle;
+        IsSignedIn = true;
+        SignedIn?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ApplySignedOut()
+    {
+        bool was = IsSignedIn;
+        IsSignedIn = false;
+        Did = null;
+        Handle = null;
+        DisplayName = null;
+        AvatarUri = null;
+        if (was)
+            SignedOut?.Invoke(this, EventArgs.Empty);
+    }
+
+    // ---- Agent events (thread-pool threads) --------------------------------------------
+
+    private void OnAuthenticated(object? sender, AuthenticatedEventArgs e) => Persist(e.AccessCredentials);
+
+    private void OnCredentialsUpdated(object? sender, CredentialsUpdatedEventArgs e) => Persist(e.AccessCredentials);
+
+    private void OnTokenRefreshFailed(object? sender, TokenRefreshFailedEventArgs e)
+    {
+        LogService.Warn("Session", $"Token refresh failed: {e.StatusCode} {e.Error?.Error} {e.Error?.Message}");
+
+        // A refresh can fail because the network blinked, in which case the agent keeps trying
+        // and the access token may still be valid for a while. Only treat an explicit rejection
+        // as "signed out".
+        if (e.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.BadRequest)
+        {
+            SessionStore.Clear();
+            if (Volatile.Read(ref _transitioning) == 0)
+                _dispatcher.TryEnqueue(ApplySignedOut);
+        }
+    }
+
+    private void OnUnauthenticated(object? sender, UnauthenticatedEventArgs e)
+    {
+        SessionStore.Clear();
+        if (Volatile.Read(ref _transitioning) == 0)
+            _dispatcher.TryEnqueue(ApplySignedOut);
+    }
+
+    private void Persist(AccessCredentials? credentials)
+    {
+        if (credentials is null || string.IsNullOrEmpty(credentials.RefreshToken))
+            return;
+
+        string? proofKey = null;
+        string? nonce = null;
+        if (credentials is DPoPAccessCredentials dpop)
+        {
+            proofKey = dpop.DPoPProofKey;
+            nonce = dpop.DPoPNonce;
+        }
+
+        SessionStore.Save(new PersistedSession
+        {
+            Service = credentials.Service.ToString(),
+            Did = credentials.Did?.ToString() ?? _agent.Did?.ToString() ?? string.Empty,
+            Handle = Handle,
+            AuthenticationType = credentials.AuthenticationType.ToString(),
+            RefreshToken = credentials.RefreshToken,
+            DPoPProofKey = proofKey,
+            DPoPNonce = nonce,
+            SavedAtUtc = DateTimeOffset.UtcNow
+        });
+    }
+
+    private Task OnUiAsync(Action action)
+    {
+        if (_dispatcher.HasThreadAccess)
+        {
+            action();
+            return Task.CompletedTask;
+        }
+
+        TaskCompletionSource tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!_dispatcher.TryEnqueue(() =>
+            {
+                try
+                {
+                    action();
+                    tcs.SetResult();
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            }))
+        {
+            tcs.SetResult(); // dispatcher shutting down; nothing to update
+        }
+        return tcs.Task;
+    }
+}

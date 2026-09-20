@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="Traysky.Pages.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="using:Traysky.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Page.Resources>
+        <Style x:Key="ClickComboStyle" TargetType="ComboBox">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="12,4,12,16" Spacing="10">
+
+            <!--  Account  -->
+            <Border Style="{StaticResource SettingCardStyle}">
+                <StackPanel Spacing="8">
+                    <TextBlock Style="{StaticResource SettingTitleStyle}" Text="Account" />
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <PersonPicture
+                            Width="36"
+                            Height="36"
+                            DisplayName="{x:Bind ViewModel.Session.DisplayName, Mode=OneWay}"
+                            ProfilePicture="{x:Bind helpers:BindHelpers.ImageFromUri(ViewModel.Session.AvatarUri), Mode=OneWay}"
+                            Visibility="{x:Bind ViewModel.Session.IsSignedIn, Mode=OneWay}" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock
+                                FontWeight="SemiBold"
+                                Text="{x:Bind ViewModel.Session.DisplayName, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis"
+                                Visibility="{x:Bind ViewModel.Session.IsSignedIn, Mode=OneWay}" />
+                            <TextBlock
+                                Style="{StaticResource SecondaryTextStyle}"
+                                Text="{x:Bind AtHandle(ViewModel.Session.Handle), Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <Button
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Command="{x:Bind ViewModel.SignOutCommand}"
+                            Content="Sign out"
+                            Visibility="{x:Bind ViewModel.Session.IsSignedIn, Mode=OneWay}" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!--  Notifications  -->
+            <Border Style="{StaticResource SettingCardStyle}">
+                <StackPanel Spacing="8">
+                    <TextBlock Style="{StaticResource SettingTitleStyle}" Text="Notifications" />
+                    <TextBlock Style="{StaticResource SettingDescriptionStyle}" Text="How often Traysky checks for unread notifications. The tray icon shows a dot when there are any." />
+                    <ComboBox HorizontalAlignment="Stretch" SelectedIndex="{x:Bind ViewModel.PollIntervalIndex, Mode=TwoWay}">
+                        <ComboBoxItem Content="Every 30 seconds" />
+                        <ComboBoxItem Content="Every minute" />
+                        <ComboBoxItem Content="Every 2 minutes" />
+                        <ComboBoxItem Content="Every 5 minutes" />
+                    </ComboBox>
+                    <TextBlock
+                        Margin="0,6,0,0"
+                        Style="{StaticResource SettingDescriptionStyle}"
+                        Text="Show a Windows notification for new…" />
+                    <ToggleSwitch
+                        IsOn="{x:Bind ViewModel.ToastMentions, Mode=TwoWay}"
+                        OffContent="Mentions"
+                        OnContent="Mentions" />
+                    <ToggleSwitch
+                        IsOn="{x:Bind ViewModel.ToastReplies, Mode=TwoWay}"
+                        OffContent="Replies"
+                        OnContent="Replies" />
+                    <ToggleSwitch
+                        IsOn="{x:Bind ViewModel.ToastQuotes, Mode=TwoWay}"
+                        OffContent="Quotes"
+                        OnContent="Quotes" />
+                    <ToggleSwitch
+                        IsOn="{x:Bind ViewModel.ToastFollows, Mode=TwoWay}"
+                        OffContent="Followers"
+                        OnContent="Followers" />
+                    <ToggleSwitch
+                        IsOn="{x:Bind ViewModel.ToastLikesReposts, Mode=TwoWay}"
+                        OffContent="Likes and reposts (summarised)"
+                        OnContent="Likes and reposts (summarised)" />
+                </StackPanel>
+            </Border>
+
+            <!--  Tray clicks  -->
+            <Border Style="{StaticResource SettingCardStyle}">
+                <StackPanel Spacing="8">
+                    <TextBlock Style="{StaticResource SettingTitleStyle}" Text="Tray icon clicks" />
+                    <TextBlock Style="{StaticResource SettingDescriptionStyle}" Text="Something always opens Traysky: if you take the flyout off every click, it moves to another one." />
+                    <ComboBox
+                        Header="Left click"
+                        SelectedIndex="{x:Bind ViewModel.LeftClickIndex, Mode=TwoWay}"
+                        Style="{StaticResource ClickComboStyle}">
+                        <ComboBoxItem Content="Nothing" />
+                        <ComboBoxItem Content="Show or hide Traysky" />
+                        <ComboBoxItem Content="Compose a post" />
+                        <ComboBoxItem Content="Open Notifications" />
+                        <ComboBoxItem Content="Open Home" />
+                    </ComboBox>
+                    <ComboBox
+                        Header="Right click"
+                        SelectedIndex="{x:Bind ViewModel.RightClickIndex, Mode=TwoWay}"
+                        Style="{StaticResource ClickComboStyle}">
+                        <ComboBoxItem Content="Nothing" />
+                        <ComboBoxItem Content="Show or hide Traysky" />
+                        <ComboBoxItem Content="Compose a post" />
+                        <ComboBoxItem Content="Open Notifications" />
+                        <ComboBoxItem Content="Open Home" />
+                    </ComboBox>
+                    <ComboBox
+                        Header="Left double-click"
+                        SelectedIndex="{x:Bind ViewModel.LeftDoubleClickIndex, Mode=TwoWay}"
+                        Style="{StaticResource ClickComboStyle}">
+                        <ComboBoxItem Content="Nothing" />
+                        <ComboBoxItem Content="Show or hide Traysky" />
+                        <ComboBoxItem Content="Compose a post" />
+                        <ComboBoxItem Content="Open Notifications" />
+                        <ComboBoxItem Content="Open Home" />
+                    </ComboBox>
+                    <ComboBox
+                        Header="Right double-click"
+                        SelectedIndex="{x:Bind ViewModel.RightDoubleClickIndex, Mode=TwoWay}"
+                        Style="{StaticResource ClickComboStyle}">
+                        <ComboBoxItem Content="Nothing" />
+                        <ComboBoxItem Content="Show or hide Traysky" />
+                        <ComboBoxItem Content="Compose a post" />
+                        <ComboBoxItem Content="Open Notifications" />
+                        <ComboBoxItem Content="Open Home" />
+                    </ComboBox>
+                    <TextBlock Style="{StaticResource SettingDescriptionStyle}" Text="Assigning a double-click makes that button's single click wait for the double-click interval." />
+                </StackPanel>
+            </Border>
+
+            <!--  Startup  -->
+            <Border Style="{StaticResource SettingCardStyle}">
+                <StackPanel Spacing="8">
+                    <TextBlock Style="{StaticResource SettingTitleStyle}" Text="Start with Windows" />
+                    <ToggleSwitch
+                        IsEnabled="{x:Bind ViewModel.IsStartupToggleEnabled, Mode=OneWay}"
+                        IsOn="{x:Bind ViewModel.IsStartupEnabled, Mode=TwoWay}"
+                        OffContent="Off"
+                        OnContent="On" />
+                    <TextBlock
+                        Style="{StaticResource SettingDescriptionStyle}"
+                        Text="{x:Bind ViewModel.StartupHint, Mode=OneWay}"
+                        Visibility="{x:Bind TextVisibility(ViewModel.StartupHint), Mode=OneWay}" />
+                </StackPanel>
+            </Border>
+
+            <!--  About  -->
+            <Border Style="{StaticResource SettingCardStyle}">
+                <StackPanel Spacing="8">
+                    <TextBlock Style="{StaticResource SettingTitleStyle}" Text="About" />
+                    <TextBlock Style="{StaticResource SettingDescriptionStyle}">
+                        <Run Text="Traysky" />
+                        <Run Text="{x:Bind ViewModel.Version}" />
+                        <Run Text="— Bluesky in your system tray. Built with idunno.Bluesky, WinUI 3 and the bones of Traydio." />
+                    </TextBlock>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Command="{x:Bind ViewModel.OpenGitHubCommand}" Content="GitHub" />
+                        <Button
+                            Command="{x:Bind ViewModel.CopyDiagnosticsCommand}"
+                            Content="Copy diagnostics"
+                            ToolTipService.ToolTip="Copies the recent log to the clipboard for a bug report" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
