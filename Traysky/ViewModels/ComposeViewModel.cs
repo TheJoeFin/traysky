@@ -17,6 +17,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Traysky.Services;
 using Traysky.ViewModels.Items;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.Pickers;
@@ -214,6 +215,123 @@ public sealed partial class ComposeViewModel : ObservableObject
 
             await AddImageAsync(file);
         }
+    }
+
+    /// <summary>
+    /// Routes clipboard content (Ctrl+V in the editor) into the same attachment pipeline as the
+    /// file picker instead of the editor's own paste - a screenshot or a file copied from
+    /// Explorer needs to become a Blob upload, not text/inline content dropped into the post
+    /// body. Handles a raw bitmap (screenshot, image copied from a browser) via
+    /// <see cref="DataPackageView.GetBitmapAsync"/> and one or more files copied from Explorer
+    /// via <see cref="StandardDataFormats.StorageItems"/>, applying the same image/video
+    /// exclusivity and count rules as picking files does.
+    /// </summary>
+    public async Task TryAttachFromClipboardAsync(DataPackageView dataPackageView)
+    {
+        Error = null;
+
+        if (dataPackageView.Contains(StandardDataFormats.StorageItems))
+        {
+            IReadOnlyList<IStorageItem> items = await dataPackageView.GetStorageItemsAsync();
+            bool attachedAny = false;
+
+            foreach (IStorageItem item in items)
+            {
+                if (item is not StorageFile file)
+                    continue;
+
+                string extension = Path.GetExtension(file.Name);
+                if (ComposeAttachmentPolicy.IsVideoExtension(extension))
+                {
+                    if (!CanAttachVideo)
+                    {
+                        Error = "A post can have images or one video, not both.";
+                        continue;
+                    }
+
+                    await AddVideoAsync(file);
+                    attachedAny = true;
+                }
+                else if (ComposeAttachmentPolicy.IsImageExtension(extension))
+                {
+                    if (!CanAttachImage)
+                    {
+                        Error = $"Up to {ComposeAttachmentPolicy.MaxImages} images per post, or one video.";
+                        continue;
+                    }
+
+                    await AddImageAsync(file);
+                    attachedAny = true;
+                }
+            }
+
+            if (!attachedAny && Error is null && items.Count > 0)
+                Error = "Clipboard doesn't contain a supported image or video.";
+
+            return;
+        }
+
+        if (dataPackageView.Contains(StandardDataFormats.Bitmap))
+        {
+            if (!CanAttachImage)
+            {
+                Error = $"Up to {ComposeAttachmentPolicy.MaxImages} images per post, or one video.";
+                return;
+            }
+
+            RandomAccessStreamReference streamRef = await dataPackageView.GetBitmapAsync();
+            await AddClipboardBitmapAsync(streamRef);
+        }
+    }
+
+    /// <summary>
+    /// A clipboard bitmap has no filename or guaranteed encoding, so it's decoded and re-encoded
+    /// as PNG rather than trusted as-is, to match what <see cref="ComposeAttachmentPolicy"/> and
+    /// Bluesky's blob upload expect.
+    /// </summary>
+    private async Task AddClipboardBitmapAsync(RandomAccessStreamReference streamRef)
+    {
+        using IRandomAccessStreamWithContentType sourceStream = await streamRef.OpenReadAsync();
+        BitmapDecoder decoder = await BitmapDecoder.CreateAsync(sourceStream);
+        SoftwareBitmap softwareBitmap = await decoder.GetSoftwareBitmapAsync();
+
+        using var encodedStream = new InMemoryRandomAccessStream();
+        BitmapEncoder encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, encodedStream);
+        encoder.SetSoftwareBitmap(softwareBitmap);
+        await encoder.FlushAsync();
+
+        var bytes = new byte[encodedStream.Size];
+        encodedStream.Seek(0);
+        using (var reader = new DataReader(encodedStream))
+        {
+            await reader.LoadAsync((uint)encodedStream.Size);
+            reader.ReadBytes(bytes);
+            // Leaves encodedStream open - it's reused below for the thumbnail - the same
+            // precaution ToInMemoryStreamAsync takes with DataWriter.DetachStream().
+            reader.DetachStream();
+        }
+
+        string? sizeError = ComposeAttachmentPolicy.ValidateSize(ComposeAttachmentKind.Image, bytes.Length);
+        if (sizeError is not null)
+        {
+            Error = sizeError;
+            return;
+        }
+
+        encodedStream.Seek(0);
+        var thumbnail = new BitmapImage();
+        await thumbnail.SetSourceAsync(encodedStream);
+
+        Attachments.Add(new ComposeAttachmentItem
+        {
+            Bytes = bytes,
+            MimeType = "image/png",
+            FileName = $"pasted-{DateTime.Now:yyyyMMddHHmmss}.png",
+            Kind = ComposeAttachmentKind.Image,
+            PixelWidth = (int)decoder.PixelWidth,
+            PixelHeight = (int)decoder.PixelHeight,
+            Thumbnail = thumbnail
+        });
     }
 
     private async Task AddImageAsync(StorageFile file)

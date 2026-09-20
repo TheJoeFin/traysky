@@ -129,6 +129,7 @@
                 LostFocus="Editor_LostFocus"
                 MaxHeight="160"
                 MinHeight="{x:Bind EditorMinHeight(ViewModel.IsExpanded), Mode=OneWay}"
+                Paste="Editor_Paste"
                 PlaceholderText="{x:Bind ViewModel.Placeholder, Mode=OneWay}"
                 Prefixes="@#"
                 PreviewKeyDown="Editor_PreviewKeyDown"

@@ -11,6 +11,7 @@ using System.ComponentModel;
 using Traysky.Services;
 using Traysky.ViewModels;
 using Traysky.ViewModels.Items;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 using Windows.UI.Core;
 
@@ -271,5 +272,22 @@ public sealed partial class ComposeBox : UserControl
         e.Handled = true;
         if (ViewModel.PostCommand.CanExecute(null))
             ViewModel.PostCommand.Execute(null);
+    }
+
+    /// <summary>
+    /// A pasted screenshot or file must become a proper media attachment (uploaded as a Blob),
+    /// not RichEditBox's own default paste behavior, which would either drop it as unusable
+    /// inline content or silently discard it (ClipboardPasteFormat="PlainText" strips images).
+    /// Handled is set before the first await, since the framework only honors it if it's true by
+    /// the time this (async void) handler yields - setting it after the await would be too late.
+    /// </summary>
+    private async void Editor_Paste(RichSuggestBox sender, TextControlPasteEventArgs e)
+    {
+        DataPackageView dataPackageView = Clipboard.GetContent();
+        if (!dataPackageView.Contains(StandardDataFormats.Bitmap) && !dataPackageView.Contains(StandardDataFormats.StorageItems))
+            return;
+
+        e.Handled = true;
+        await ViewModel.TryAttachFromClipboardAsync(dataPackageView);
     }
 }

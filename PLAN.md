@@ -49,6 +49,20 @@ Either embed is attached via `idunno.Bluesky.PostBuilder` (`Add(images)` / `Add(
 convenience `agent.Post(text, …)` overloads do) rather than the plain-image `Post`/`ReplyTo`/
 `Quote` overloads, so one code path covers new/reply/quote × image/video instead of four.
 
+**2026-09-20: compose accepts pasted media from the clipboard.** `ComposeBox`'s `RichSuggestBox`
+handles `Paste`: if the clipboard has `StandardDataFormats.Bitmap` (a screenshot or an image
+copied from a browser) or `StandardDataFormats.StorageItems` (file(s) copied from Explorer),
+`e.Handled` is set *before* the first `await` (the framework only honors it if it's already true
+when this async void handler yields control) so the RichEditBox's own paste never runs — pasted
+media must become a real attachment, not text/inline content the box can't post as media
+anyway (`ClipboardPasteFormat="PlainText"` would otherwise just drop an image, and there's no
+`Bitmap`/`Image` clipboard format it could paste inline even without that setting).
+`ComposeViewModel.TryAttachFromClipboardAsync` routes storage items through the same
+`AddImageAsync`/`AddVideoAsync` used by the file picker; a raw bitmap has no filename or
+guaranteed source encoding, so it's decoded and re-encoded to PNG (`BitmapDecoder` →
+`SoftwareBitmap` → `BitmapEncoder`) before going through the same size-limit/mime path as a
+picked file. Same image/video exclusivity and count rules apply either way.
+
 ---
 
 ## 1. Stack
@@ -249,9 +263,10 @@ overrun the text (real-world data does this).
   at 280, disable Post over 300. The library auto-detects links/mentions/hashtags → facets.
 - `agent.Post(text)`, `agent.ReplyTo(strongRef, text)`, quote via the `Post` overload that takes
   an embed / the quote helper. Language from `CultureInfo.CurrentUICulture` (`language:`).
-- Images and video: done — see the 2026-09-20 note in §0. `UploadBlob` for images,
-  `UploadVideo` + `GetJobStatus` polling for video, alt text on both. Paste-from-clipboard would
-  be the tray-native gesture to add later; picking is via `FileOpenPicker` for now.
+- Images and video: done — see the 2026-09-20 notes in §0. `UploadBlob` for images,
+  `UploadVideo` + `GetJobStatus` polling for video, alt text on both. Picking is via
+  `FileOpenPicker`; pasting an image/file from the clipboard (Ctrl+V) is also done, routed
+  through the same attachment pipeline instead of the editor's own paste.
 - Draft survives popup light-dismiss (keep the VM alive, like Traydio keeps `ShellPage` alive).
 
 ### 4.8 Rate limits
