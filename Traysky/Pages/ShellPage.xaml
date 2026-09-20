@@ -21,9 +21,6 @@
             Title="Traysky"
             BackRequested="TitleBar_BackRequested"
             IsBackButtonVisible="{x:Bind ViewModel.CanGoBack, Mode=OneWay}">
-            <TitleBar.IconSource>
-                <ImageIconSource ImageSource="ms-appx:///Assets/Wings-Dark.png" />
-            </TitleBar.IconSource>
             <TitleBar.RightHeader>
                 <StackPanel Orientation="Horizontal" Spacing="2">
                     <Button

@@ -51,6 +51,21 @@ public sealed partial class ShellPage : Page
         KeyboardAccelerators.Add(Accelerator(VirtualKey.Number1, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Home); }));
         KeyboardAccelerators.Add(Accelerator(VirtualKey.Number2, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Notifications); }));
         KeyboardAccelerators.Add(Accelerator(VirtualKey.N, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Compose); }));
+
+        ActualThemeChanged += (_, _) => UpdateTitleBarIcon();
+    }
+
+    /// <summary>
+    /// The title bar icon needs the opposite tone from the app's theme to stay visible against
+    /// the title bar background (light chrome in light theme, dark chrome in dark theme).
+    /// </summary>
+    private void UpdateTitleBarIcon()
+    {
+        string asset = ActualTheme == ElementTheme.Dark ? "Wings-Light" : "Wings-Dark";
+        SimpleTitleBar.IconSource = new ImageIconSource
+        {
+            ImageSource = new BitmapImage(new Uri($"ms-appx:///Assets/{asset}.png")),
+        };
     }
 
     private static KeyboardAccelerator Accelerator(VirtualKey key, VirtualKeyModifiers modifiers, TypedEventHandler<KeyboardAccelerator, KeyboardAcceleratorInvokedEventArgs> handler)
@@ -62,6 +77,8 @@ public sealed partial class ShellPage : Page
 
     private void Page_Loaded(object sender, RoutedEventArgs e)
     {
+        UpdateTitleBarIcon();
+
         _navigation.Frame = ContentFrame;
         ResetNavigation();
 
@@ -258,15 +275,11 @@ public sealed partial class ShellPage : Page
 
         _ = NotificationPollService.Instance.PollNowAsync();
 
-        switch (_navigation.Frame?.Content)
+        _ = (_navigation.Frame?.Content) switch
         {
-            case NotificationsPage:
-                _ = NotificationsViewModel.Instance.RefreshAsync();
-                break;
-            default:
-                _ = TimelineViewModel.Instance.RefreshAsync();
-                break;
-        }
+            NotificationsPage => NotificationsViewModel.Instance.RefreshAsync(),
+            _ => TimelineViewModel.Instance.RefreshAsync(),
+        };
     }
 
     private void NewPostButton_Click(object sender, RoutedEventArgs e) => NavigateTo(ShellDestination.Compose);
