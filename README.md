@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="128" align="center" src="Traysky/Assets/Square150x150Logo.scale-200.png">
+  <img width="128" align="center" src="Traysky/Assets/Wings-Light.svg">
 </p>
 <h1 align="center">Traysky</h1>
 <p align="center">Bluesky in your Windows system tray</p>
