@@ -41,6 +41,13 @@ public partial class App : Application
     {
         InitializeComponent();
         UnhandledException += OnUnhandledException;
+
+        // UnhandledException above only catches exceptions dispatched on the UI thread. A
+        // background thread (the NAudio capture thread, a ThreadPool.RegisterWaitForSingleObject
+        // callback) or a fire-and-forget Task that nobody awaited would otherwise crash or fail
+        // silently with nothing in the log.
+        AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
     }
 
     /// <summary>The running instance, for code that needs to show the flyout (toasts, settings).</summary>
@@ -419,6 +426,20 @@ public partial class App : Application
         LogService.Error("App", "Unhandled exception", e.Exception);
     }
 
+    private void OnAppDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
+    {
+        // e.ExceptionObject is typed object (not necessarily Exception) per the CLR contract,
+        // and the process is already terminating (IsTerminating) by the time this fires - this
+        // is best-effort logging, not a chance to recover.
+        LogService.Error("App", $"Unhandled exception on non-UI thread (terminating={e.IsTerminating})", e.ExceptionObject as Exception);
+    }
+
+    private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        LogService.Error("App", "Unobserved task exception", e.Exception);
+        e.SetObserved();
+    }
+
     /// <summary>
     /// The app's only real exit path (the Quit button and the duplicate-instance early-out both
     /// route here). Tears down the tray icon and native resources, then exits.
@@ -462,6 +483,12 @@ public partial class App : Application
             Debug.WriteLine($"[App] Error during shutdown: {ex.Message}");
         }
 
-        Exit();
+        // Closing the popup window queues compositor/visual-tree teardown work on this same
+        // dispatcher; stopping the message loop with Exit() before that work runs (rather than
+        // after it drains) is what a debugger-attached XAML diagnostics tap can catch mid-teardown.
+        if (_uiDispatcherQueue is not null)
+            _uiDispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, Exit);
+        else
+            Exit();
     }
 }
