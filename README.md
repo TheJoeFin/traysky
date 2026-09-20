@@ -12,6 +12,10 @@ the fastest way to post, the calmest way to keep up.
 Built with .NET 10, WinUI 3, the Windows App SDK and [idunno.Bluesky](https://bluesky.idunno.dev/),
 on the tray plumbing of [Traydio](https://github.com/TheJoeFin/Traydio).
 
+<p align="center">
+  <img src="images/v1-Screenshot.png" alt="Traysky flyout screenshot">
+</p>
+
 ## Features
 
 - 🦋 Tray icon with an unread dot; theme-aware when signed out
