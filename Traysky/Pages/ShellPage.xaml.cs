@@ -360,9 +360,14 @@ public sealed partial class ShellPage : Page
 
     private void OnVideoRequested(object? sender, VideoViewerRequest request)
     {
+        // x:Load="False" until a video is actually opened: a MediaPlayerElement pulls in the
+        // whole Media Foundation playback stack, which most sessions never need.
+        if (VideoOverlay is null)
+            FindName(nameof(VideoOverlay));
+
         VideoPlayer.PosterSource = request.Thumbnail is null ? null : new BitmapImage(request.Thumbnail);
         VideoPlayer.Source = MediaSource.CreateFromUri(request.PlaylistUri);
-        VideoOverlay.Visibility = Visibility.Visible;
+        VideoOverlay!.Visibility = Visibility.Visible;
     }
 
     /// <summary>Swallows taps on the player itself so they toggle/move the transport controls
@@ -375,9 +380,15 @@ public sealed partial class ShellPage : Page
 
     private void CloseVideoOverlay()
     {
-        VideoOverlay.Visibility = Visibility.Collapsed;
+        if (VideoOverlay is null)
+            return;
+
         VideoPlayer.MediaPlayer?.Pause();
         VideoPlayer.Source = null;
+
+        // Tear the player down rather than just hiding it, so its MediaPlayer and decoder
+        // resources go with it; the next video realizes a fresh one.
+        UnloadObject(VideoOverlay);
     }
 
     /// <summary>
@@ -387,7 +398,7 @@ public sealed partial class ShellPage : Page
     /// </summary>
     public bool TryCloseVideoOverlay()
     {
-        if (VideoOverlay.Visibility != Visibility.Visible)
+        if (VideoOverlay is null)
             return false;
 
         CloseVideoOverlay();

@@ -189,9 +189,9 @@
         <Grid
             x:Name="VideoOverlay"
             Grid.RowSpan="3"
+            x:Load="False"
             Background="#E6000000"
-            Tapped="VideoOverlay_Tapped"
-            Visibility="Collapsed">
+            Tapped="VideoOverlay_Tapped">
             <MediaPlayerElement
                 x:Name="VideoPlayer"
                 Margin="16,44,16,16"
