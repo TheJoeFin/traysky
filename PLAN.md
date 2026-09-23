@@ -239,7 +239,7 @@ if (s is not null)
 
 ### 4.5 Timeline (M3)
 
-- `GetTimeline(limit: 30)` on popup open if the cache is older than 2 min or empty; pull-to-refresh
+- `GetTimeline(limit: 15)` on popup open if the cache is older than 2 min or empty; pull-to-refresh
   button in the header; `cursor` paging when the `ListView` nears the end
   (`ItemsStackPanel` + scroll-viewer threshold or `IncrementalLoadingCollection`).
 - Project `FeedViewPost` → `PostItem` once: author, avatar Uri, display text, facets, embed,

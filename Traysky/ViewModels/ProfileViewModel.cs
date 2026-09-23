@@ -20,7 +20,7 @@ namespace Traysky.ViewModels;
 /// </summary>
 public sealed partial class ProfileViewModel : ObservableObject
 {
-    private const int PageSize = 25;
+    private const int PageSize = 15;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
     private string? _actor;

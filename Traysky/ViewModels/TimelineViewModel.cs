@@ -25,7 +25,9 @@ public sealed partial class TimelineViewModel : ObservableObject
 
     public static TimelineViewModel Instance => _instance.Value;
 
-    private const int PageSize = 30;
+    // Enough to fill the flyout a couple of times over; scrolling fetches the rest. Kept small
+    // because this view model lives for the app's life and holds every post it has loaded.
+    private const int PageSize = 15;
     private static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(1);
 
     private readonly SemaphoreSlim _gate = new(1, 1);
