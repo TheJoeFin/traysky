@@ -16,7 +16,7 @@ using Windows.System;
 namespace Traysky.Pages;
 
 /// <summary>
-/// The flyout's chrome: title bar (with the notifications, refresh, settings and quit buttons),
+/// The flyout's chrome: title bar (with the notifications, refresh, profile, settings and quit buttons),
 /// the account's feed tab row, and the frame the pages live in. One instance lives for the
 /// app's life inside <see cref="Controls.TrayPopupWindow"/>.
 /// </summary>
@@ -289,6 +289,14 @@ public sealed partial class ShellPage : Page
     private void NewPostButton_Click(object sender, RoutedEventArgs e) => NavigateTo(ShellDestination.Compose);
 
     private void NotificationsButton_Click(object sender, RoutedEventArgs e) => NavigateTo(ShellDestination.Notifications);
+
+    private void ProfileButton_Click(object sender, RoutedEventArgs e)
+    {
+        BlueskySessionService session = BlueskySessionService.Instance;
+        if (_navigation.Frame?.Content is ProfilePage { ViewModel.IsSelf: true })
+            return;
+        ProfilePage.Open(session.Did ?? session.Handle ?? string.Empty);
+    }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {

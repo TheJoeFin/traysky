@@ -59,6 +59,14 @@
                         <FontIcon FontSize="14" Glyph="&#xE72C;" />
                     </Button>
                     <Button
+                        x:Name="ProfileButton"
+                        Click="ProfileButton_Click"
+                        Style="{StaticResource TitleBarButtonStyle}"
+                        ToolTipService.ToolTip="Your profile"
+                        Visibility="{x:Bind ViewModel.IsSignedIn, Mode=OneWay}">
+                        <FontIcon FontSize="14" Glyph="&#xE77B;" />
+                    </Button>
+                    <Button
                         x:Name="SettingsButton"
                         Click="SettingsButton_Click"
                         Style="{StaticResource TitleBarButtonStyle}"
