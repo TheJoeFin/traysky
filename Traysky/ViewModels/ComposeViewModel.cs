@@ -92,6 +92,9 @@ public sealed partial class ComposeViewModel : ObservableObject
     /// <summary>Raised on the UI thread after a post goes through, so the timeline can refresh.</summary>
     public event EventHandler? Posted;
 
+    /// <summary>Bumped just before <see cref="Posted"/>, so a page can tell whether a post went through while it wasn't showing.</summary>
+    public int PostedCount { get; private set; }
+
     /// <summary>Raised when something wants the text box focused (tray "Compose" action, reply button).</summary>
     public event EventHandler? FocusRequested;
 
@@ -573,6 +576,7 @@ public sealed partial class ComposeViewModel : ObservableObject
                 QuoteOf = null;
                 Attachments.Clear();
                 IsExpanded = false;
+                PostedCount++;
                 Posted?.Invoke(this, EventArgs.Empty);
                 return;
             }

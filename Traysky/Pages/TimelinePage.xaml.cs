@@ -16,6 +16,9 @@ public sealed partial class TimelinePage : Page
 {
     private ScrollViewer? _scrollViewer;
 
+    /// <summary><see cref="ComposeViewModel.PostedCount"/> as of navigating away, to tell on return whether a post went through meanwhile.</summary>
+    private int _postedCountWhenLeft;
+
     public TimelineViewModel ViewModel { get; } = TimelineViewModel.Instance;
 
     public TimelinePage()
@@ -27,7 +30,25 @@ public sealed partial class TimelinePage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+
+        // Cached, so coming back keeps the old scroll position - after posting from ComposePage
+        // that would leave the new post (and the refresh bringing it in) out of view. Only then,
+        // though: backing out of a thread after an inline reply there keeps the user's place.
+        if (e.NavigationMode == NavigationMode.Back
+            && ComposeViewModel.Instance.PostedCount != _postedCountWhenLeft
+            && Frame.ForwardStack.Count > 0
+            && Frame.ForwardStack[^1].SourcePageType == typeof(ComposePage))
+        {
+            ScrollToTop();
+        }
+
         _ = ViewModel.RefreshIfStaleAsync();
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        _postedCountWhenLeft = ComposeViewModel.Instance.PostedCount;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)

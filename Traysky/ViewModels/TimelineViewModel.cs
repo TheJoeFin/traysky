@@ -30,6 +30,10 @@ public sealed partial class TimelineViewModel : ObservableObject
     private const int PageSize = 15;
     private static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(1);
 
+    // createRecord returns once the PDS has the post, but the AppView serving getTimeline picks
+    // it up from the firehose a moment later - fetch straight away and the new post is missing.
+    private static readonly TimeSpan PostIndexDelay = TimeSpan.FromSeconds(2);
+
     private readonly SemaphoreSlim _gate = new(1, 1);
     private string? _cursor;
     private DateTimeOffset _loadedAtUtc = DateTimeOffset.MinValue;
@@ -40,7 +44,20 @@ public sealed partial class TimelineViewModel : ObservableObject
     private TimelineViewModel()
     {
         BlueskySessionService.Instance.SignedOut += (_, _) => Clear();
-        ComposeViewModel.Instance.Posted += (_, _) => _ = RefreshAsync();
+        ComposeViewModel.Instance.Posted += (_, _) => _ = RefreshAfterPostAsync();
+    }
+
+    /// <summary>
+    /// Marks the list stale first, so returning to the timeline (or reopening the popup) refreshes
+    /// even if this one is dropped by the gate or lands before the post is indexed; then refreshes
+    /// once the AppView has had a moment to see the new post. Posted is raised on the UI thread,
+    /// so the await resumes there too.
+    /// </summary>
+    private async Task RefreshAfterPostAsync()
+    {
+        _loadedAtUtc = DateTimeOffset.MinValue;
+        await Task.Delay(PostIndexDelay);
+        await RefreshAsync();
     }
 
     public ObservableCollection<PostItem> Posts { get; } = [];
