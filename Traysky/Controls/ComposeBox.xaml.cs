@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using Traysky.Services;
@@ -36,12 +37,16 @@ public sealed partial class ComposeBox : UserControl
     /// <summary>Bumped per '@' suggestion request so a slow response can't overwrite a newer one's results.</summary>
     private int _mentionRequestEpoch;
 
+    /// <summary>Held while this box is on screen with a draft in it, so the popup stays up while the user gathers content from other apps.</summary>
+    private IDisposable? _lightDismissSuppression;
+
     public ComposeBox()
     {
         InitializeComponent();
         ViewModel.FocusRequested += OnFocusRequested;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         Loaded += ComposeBox_Loaded;
+        RegisterPropertyChangedCallback(VisibilityProperty, (_, _) => UpdateLightDismissSuppression());
 
         // A PostCard's own inline box is created fresh with every thread page visit (PostPage
         // isn't cached); without this, each one leaks its subscription to the shared singleton.
@@ -49,11 +54,20 @@ public sealed partial class ComposeBox : UserControl
         {
             ViewModel.FocusRequested -= OnFocusRequested;
             ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _lightDismissSuppression?.Dispose();
+            _lightDismissSuppression = null;
         };
     }
 
     private void ComposeBox_Loaded(object sender, RoutedEventArgs e)
     {
+        // Unloaded dropped this; a recycled instance re-entering the tree needs it back to keep
+        // its editor and light-dismiss suppression in step with the draft. -= first so the
+        // initial Loaded (already subscribed by the constructor) doesn't double up.
+        ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        UpdateLightDismissSuppression();
+
         // Runs every time this instance (re)enters the visual tree, not just once: a PostCard's
         // inline box can be recycled by list virtualization, and the shared singleton VM's draft
         // may have changed to reflect a different post's reply while this instance was detached.
@@ -64,8 +78,33 @@ public sealed partial class ComposeBox : UserControl
             SetEditorText(ViewModel.Text);
     }
 
+    /// <summary>
+    /// Composing often means copying text or a screenshot from another app, so a visible box
+    /// holding a draft keeps the popup from light-dismissing when focus leaves it. An empty box
+    /// (or one that's collapsed, e.g. a PostCard's unused inline reply) doesn't.
+    /// </summary>
+    private void UpdateLightDismissSuppression()
+    {
+        bool shouldSuppress = IsLoaded
+            && Visibility == Visibility.Visible
+            && PostTextPolicy.HasDraftContent(ViewModel.Text, ViewModel.Attachments.Count);
+
+        if (shouldSuppress)
+        {
+            _lightDismissSuppression ??= LightDismissSuppressionService.Suppress();
+        }
+        else
+        {
+            _lightDismissSuppression?.Dispose();
+            _lightDismissSuppression = null;
+        }
+    }
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is nameof(ComposeViewModel.Text) or nameof(ComposeViewModel.HasAttachments))
+            UpdateLightDismissSuppression();
+
         if (e.PropertyName != nameof(ComposeViewModel.Text) || _syncingFromViewModel)
             return;
 

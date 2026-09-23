@@ -44,6 +44,15 @@ public class PostTextPolicyTests
         Assert.IsFalse(PostTextPolicy.CanPost("   \n "));
         Assert.IsFalse(PostTextPolicy.CanPost(null));
     }
+
+    [TestMethod]
+    public void DraftContentIsTextOrAttachments()
+    {
+        Assert.IsFalse(PostTextPolicy.HasDraftContent(null, 0));
+        Assert.IsFalse(PostTextPolicy.HasDraftContent("  \n ", 0));
+        Assert.IsTrue(PostTextPolicy.HasDraftContent("hi", 0));
+        Assert.IsTrue(PostTextPolicy.HasDraftContent("", 1));
+    }
 }
 
 [TestClass]

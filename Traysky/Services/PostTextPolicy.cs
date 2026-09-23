@@ -35,4 +35,12 @@ public static class PostTextPolicy
 
         return !IsOverLimit(text);
     }
+
+    /// <summary>
+    /// Whether a draft has anything the user would lose by the popup light-dismissing while they
+    /// fetch more from elsewhere - typed text or an attachment. A reply/quote target alone doesn't
+    /// count; it's one click to set up again.
+    /// </summary>
+    public static bool HasDraftContent(string? text, int attachmentCount) =>
+        !string.IsNullOrWhiteSpace(text) || attachmentCount > 0;
 }
