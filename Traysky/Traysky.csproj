@@ -87,6 +87,33 @@
     <TrimmerRootAssembly Include="idunno.AtProto.Types" />
   </ItemGroup>
 
+  <!--
+    Runtime memory settings. A tray app spends almost its whole life idle and hidden, with a
+    managed heap of only a few MB, so these trade throughput it never needs for footprint:
+    - Non-concurrent GC: no background GC thread (and its stack and bookkeeping). With a heap
+      this small, a blocking gen2 collection is sub-millisecond anyway.
+    - No TieredPGO: skips the instrumented tier between ReadyToRun/tier-0 code and tier-1, and
+      the profile data it collects - both are extra code-heap memory for no noticeable gain here.
+    - UseNls: globalization through Windows' own NLS instead of ICU, so icu.dll and its ~30 MB
+      data file are never loaded. WinUI already formats through NLS, so dates and numbers
+      match what the rest of the UI shows.
+    - DisableDynamicEngine: Microsoft.Extensions.DependencyInjection (pulled in by idunno's
+      HttpClientFactory) otherwise compiles its service resolvers with Reflection.Emit and
+      System.Linq.Expressions; the reflection path is plenty fast for a handful of resolves.
+    - EventSourceSupport off in Release: no runtime EventSources / EventPipe metadata. This
+      does mean dotnet-counters / dotnet-trace show nothing against a Release build.
+  -->
+  <PropertyGroup>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>false</TieredPGO>
+    <EventSourceSupport Condition="'$(Configuration)' != 'Debug'">false</EventSourceSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.Globalization.UseNls" Value="true" />
+    <RuntimeHostConfigurationOption Include="Microsoft.Extensions.DependencyInjection.DisableDynamicEngine" Value="true" />
+  </ItemGroup>
+
   <!-- Publish Properties -->
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
