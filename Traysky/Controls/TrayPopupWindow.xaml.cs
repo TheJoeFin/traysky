@@ -59,6 +59,7 @@ public sealed partial class TrayPopupWindow : WindowEx
 
     private readonly DispatcherQueueTimer _hideTimer;
     private readonly DispatcherQueueTimer _animationTimer;
+    private readonly DispatcherQueueTimer _trimTimer;
     private readonly Stopwatch _animationClock = new();
     private readonly HWND _hwnd;
     private readonly UISettings _uiSettings = new();
@@ -107,6 +108,18 @@ public sealed partial class TrayPopupWindow : WindowEx
         _animationTimer.Interval = FrameInterval;
         _animationTimer.IsRepeating = true;
         _animationTimer.Tick += AnimationTimer_Tick;
+
+        // Armed now as well as on every hide: the app starts in the tray, and startup leaves
+        // plenty behind (JIT, first-request HTTP/JSON setup) that the idle app won't touch.
+        _trimTimer = DispatcherQueue.CreateTimer();
+        _trimTimer.Interval = MemoryTrimService.HiddenDelay;
+        _trimTimer.IsRepeating = false;
+        _trimTimer.Tick += (_, _) =>
+        {
+            if (!_isPopupVisible)
+                MemoryTrimService.Trim();
+        };
+        _trimTimer.Start();
     }
 
     private void OnColorValuesChanged(UISettings sender, object args)
@@ -181,6 +194,7 @@ public sealed partial class TrayPopupWindow : WindowEx
         _baseY = AppWindow.Position.Y;
 
         _hideTimer.Stop();
+        _trimTimer.Stop();
         _isShowing = true;
         _isPopupVisible = true;
 
@@ -281,7 +295,10 @@ public sealed partial class TrayPopupWindow : WindowEx
         _animationClock.Reset();
 
         if (_isHiding)
+        {
             this.Hide();
+            _trimTimer.Start();
+        }
     }
 
     private void ApplyFrame(int offset, double opacity)

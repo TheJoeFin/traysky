@@ -23,3 +23,5 @@ SHAppBarMessage
 Shell_NotifyIconGetRect
 ShowWindow
 WINDOW_EX_STYLE
+GetCurrentProcess
+SetProcessWorkingSetSize
