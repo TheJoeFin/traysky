@@ -196,6 +196,15 @@ public sealed partial class PostCard : UserControl
 
     private void OpenProfile_Click(object sender, RoutedEventArgs e) => OpenProfile();
 
+    /// <summary>A thread page's main post (the only non-openable card) gets the likes/reposts button.</summary>
+    public Visibility EngagementVisibility(bool isOpenable) => isOpenable ? Visibility.Collapsed : Visibility.Visible;
+
+    private void Engagement_Click(object sender, RoutedEventArgs e)
+    {
+        if (Post is not null)
+            Pages.PostEngagementPage.Open(Post);
+    }
+
     private void Avatar_Tapped(object sender, TappedRoutedEventArgs e)
     {
         e.Handled = true;

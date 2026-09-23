@@ -160,42 +160,54 @@
                 </Button>
             </StackPanel>
 
-            <Button
+            <StackPanel
                 HorizontalAlignment="Right"
-                Style="{StaticResource PostActionButtonStyle}"
-                ToolTipService.ToolTip="More">
-                <FontIcon FontSize="14" Glyph="&#xE712;" />
-                <Button.Flyout>
-                    <MenuFlyout Placement="BottomEdgeAlignedRight">
-                        <MenuFlyoutItem Click="Quote_Click" Text="Quote post">
-                            <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE9B7;" />
-                            </MenuFlyoutItem.Icon>
-                        </MenuFlyoutItem>
-                        <MenuFlyoutItem Click="CopyLink_Click" Text="Copy link">
-                            <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE71B;" />
-                            </MenuFlyoutItem.Icon>
-                        </MenuFlyoutItem>
-                        <MenuFlyoutItem Click="CopyText_Click" Text="Copy text">
-                            <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE8C8;" />
-                            </MenuFlyoutItem.Icon>
-                        </MenuFlyoutItem>
-                        <MenuFlyoutSeparator />
-                        <MenuFlyoutItem Click="OpenInBrowser_Click" Text="Open on bsky.app">
-                            <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE8A7;" />
-                            </MenuFlyoutItem.Icon>
-                        </MenuFlyoutItem>
-                        <MenuFlyoutItem Click="OpenProfile_Click" Text="View profile">
-                            <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE77B;" />
-                            </MenuFlyoutItem.Icon>
-                        </MenuFlyoutItem>
-                    </MenuFlyout>
-                </Button.Flyout>
-            </Button>
+                Orientation="Horizontal"
+                Spacing="2">
+                <!--  Only on the post a thread page is about: who liked / reposted it.  -->
+                <Button
+                    Click="Engagement_Click"
+                    Style="{StaticResource PostActionButtonStyle}"
+                    ToolTipService.ToolTip="Likes and reposts"
+                    Visibility="{x:Bind EngagementVisibility(IsOpenable), Mode=OneWay}">
+                    <FontIcon FontSize="14" Glyph="&#xE946;" />
+                </Button>
+                <Button
+                    Style="{StaticResource PostActionButtonStyle}"
+                    ToolTipService.ToolTip="More">
+                    <FontIcon FontSize="14" Glyph="&#xE712;" />
+                    <Button.Flyout>
+                        <MenuFlyout Placement="BottomEdgeAlignedRight">
+                            <MenuFlyoutItem Click="Quote_Click" Text="Quote post">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE9B7;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem Click="CopyLink_Click" Text="Copy link">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE71B;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem Click="CopyText_Click" Text="Copy text">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE8C8;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem Click="OpenInBrowser_Click" Text="Open on bsky.app">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE8A7;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem Click="OpenProfile_Click" Text="View profile">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE77B;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+            </StackPanel>
         </Grid>
 
         <!--  Inline reply box: a hidden child of every card, popped visible right below the

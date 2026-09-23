@@ -84,6 +84,15 @@ public static class FeedMapper
         AvatarUri = profile.Avatar
     };
 
+    /// <summary>Projects an account onto a people-list row (who liked / reposted a post).</summary>
+    public static ActorItem ToActorItem(ProfileViewBasic profile) => new()
+    {
+        Did = profile.Did.ToString(),
+        Handle = profile.Handle?.ToString() ?? string.Empty,
+        DisplayName = string.IsNullOrWhiteSpace(profile.DisplayName) ? string.Empty : profile.DisplayName.Trim(),
+        AvatarUri = profile.Avatar
+    };
+
     public static IEnumerable<FacetInput> ToFacetInputs(IEnumerable<Facet>? facets)
     {
         if (facets is null)
