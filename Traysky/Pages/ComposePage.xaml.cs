@@ -19,7 +19,14 @@ public sealed partial class ComposePage : Page
     public ComposePage()
     {
         InitializeComponent();
-        ComposeViewModel.Instance.Posted += OnPosted;
+
+        // Tied to Loaded, not the constructor, so a page that never loads can't be left rooted
+        // by the singleton.
+        Loaded += (_, _) =>
+        {
+            ComposeViewModel.Instance.Posted -= OnPosted;
+            ComposeViewModel.Instance.Posted += OnPosted;
+        };
         Unloaded += (_, _) => ComposeViewModel.Instance.Posted -= OnPosted;
     }
 

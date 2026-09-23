@@ -23,9 +23,14 @@ public sealed partial class PostPage : Page
         InitializeComponent();
 
         // A reply (now inline under its post - see PostCard) or a quote posted from this page
-        // won't show up until the thread is re-fetched. Not cached (see class remarks), so
-        // unsubscribe on Unloaded.
-        ComposeViewModel.Instance.Posted += OnPosted;
+        // won't show up until the thread is re-fetched. Not cached (see class remarks), so the
+        // subscription is tied to Loaded/Unloaded - never the constructor, where a page that
+        // was created but never loaded would be left rooted by the singleton.
+        Loaded += (_, _) =>
+        {
+            ComposeViewModel.Instance.Posted -= OnPosted;
+            ComposeViewModel.Instance.Posted += OnPosted;
+        };
         Unloaded += (_, _) => ComposeViewModel.Instance.Posted -= OnPosted;
     }
 
