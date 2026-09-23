@@ -20,8 +20,8 @@ namespace Traysky.Controls;
 
 /// <summary>
 /// The compose box: the one on <see cref="Pages.ComposePage"/> (a fresh post, a quote, or a
-/// reply to a post that isn't shown anywhere), or the one a PostCard keeps hidden and pops
-/// visible for an inline reply. One line until focused; Ctrl+Enter posts. The editor is a
+/// reply to a post that isn't shown anywhere), or the one a PostCard realizes on its first
+/// inline reply. One line until focused; Ctrl+Enter posts. The editor is a
 /// RichSuggestBox (CommunityToolkit) so typing '@' or '#' opens a live suggestion popup; see
 /// <see cref="RichSuggestTextPolicy"/> for how its token markup is turned back into the plain
 /// "@handle"/"#tag" text <see cref="ComposeViewModel.Text"/> and PostAsync's facet extraction
@@ -43,8 +43,12 @@ public sealed partial class ComposeBox : UserControl
     public ComposeBox()
     {
         InitializeComponent();
+
+        // FocusRequested is taken from construction, not just from Loaded: a PostCard realizes
+        // its inline box in response to ReplyTo changing, and BeginReply raises FocusRequested
+        // right after - before the new box has loaded. PropertyChanged waits for Loaded, since
+        // nothing it drives does anything until then.
         ViewModel.FocusRequested += OnFocusRequested;
-        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         Loaded += ComposeBox_Loaded;
         RegisterPropertyChangedCallback(VisibilityProperty, (_, _) => UpdateLightDismissSuppression());
 
@@ -61,9 +65,12 @@ public sealed partial class ComposeBox : UserControl
 
     private void ComposeBox_Loaded(object sender, RoutedEventArgs e)
     {
-        // Unloaded dropped this; a recycled instance re-entering the tree needs it back to keep
-        // its editor and light-dismiss suppression in step with the draft. -= first so the
-        // initial Loaded (already subscribed by the constructor) doesn't double up.
+        // Unloaded dropped these; a recycled instance re-entering the tree needs them back to
+        // keep its editor, focus and light-dismiss suppression in step with the draft. -= first
+        // so the initial Loaded (FocusRequested already subscribed by the constructor) doesn't
+        // double up.
+        ViewModel.FocusRequested -= OnFocusRequested;
+        ViewModel.FocusRequested += OnFocusRequested;
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         UpdateLightDismissSuppression();
@@ -108,9 +115,8 @@ public sealed partial class ComposeBox : UserControl
         if (e.PropertyName != nameof(ComposeViewModel.Text) || _syncingFromViewModel)
             return;
 
-        // PostCard embeds its own ComposeBox for the inline reply box, so many instances of this
-        // control can share the singleton VM at once; most sit collapsed and never load their
-        // RichEditBox. A change from any one of them (including this one's own edit, echoed back
+        // Each PostCard that has been replied to keeps its own ComposeBox, so several instances
+        // of this control can share the singleton VM at once, most of them collapsed. A change from any one of them (including this one's own edit, echoed back
         // here) must not touch an instance whose TextDocument isn't ready yet - ComposeBox_Loaded
         // catches it up from the VM once it is.
         if (!IsEditorReady)

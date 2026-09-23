@@ -213,13 +213,16 @@
             </StackPanel>
         </Grid>
 
-        <!--  Inline reply box: a hidden child of every card, popped visible right below the
-              post it's replying to. Shown/hidden from code-behind (see UpdateInlineReplyVisibility)
-              rather than x:Bind - see PostCard's constructor for why.  -->
+        <!--  Inline reply box: popped visible right below the post it's replying to. Not
+              realized until the first reply on this card (x:Load="False", realized with
+              FindName) - a full RichSuggestBox editor per card is by far the heaviest thing a
+              card could hold. Shown/hidden from code-behind (see UpdateInlineReplyVisibility)
+              rather than x:Bind - see OnComposeStateChanged for why.  -->
         <local:ComposeBox
             x:Name="InlineReply"
             Grid.Row="6"
             Grid.Column="1"
+            x:Load="False"
             animations:Implicit.HideAnimations="{StaticResource ImplicitFadeHideAnimations}"
             animations:Implicit.ShowAnimations="{StaticResource ImplicitFadeShowAnimations}"
             Visibility="Collapsed" />

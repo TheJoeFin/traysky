@@ -37,14 +37,25 @@ public sealed partial class PostCard : UserControl
     {
         InitializeComponent();
 
-        // Drives the inline reply box's Visibility from code, not x:Bind: x:Bind's change
-        // tracking on a function bound to two different sources (the shared ComposeViewModel's
-        // ReplyTo plus this card's own Post) doesn't reliably fire on ReplyTo alone, which left
-        // the box visible-but-collapsed-small after Cancel instead of fully hiding.
-        ComposeViewModel.Instance.PropertyChanged += OnComposeStateChanged;
+        // Subscribed only while in the tree. Subscribing in the constructor leaked every card
+        // that was created but never loaded (so never got an Unloaded) - and with it, through
+        // ThreadRequested, the whole PostPage it was on - into the singleton for good. It also
+        // left a card recycled by list virtualization deaf to ReplyTo after its first Unloaded.
+        Loaded += (_, _) =>
+        {
+            ComposeViewModel.Instance.PropertyChanged -= OnComposeStateChanged;
+            ComposeViewModel.Instance.PropertyChanged += OnComposeStateChanged;
+            UpdateInlineReplyVisibility();
+        };
         Unloaded += (_, _) => ComposeViewModel.Instance.PropertyChanged -= OnComposeStateChanged;
     }
 
+    /// <summary>
+    /// Drives the inline reply box's Visibility from code, not x:Bind: x:Bind's change tracking on
+    /// a function bound to two different sources (the shared ComposeViewModel's ReplyTo plus this
+    /// card's own Post) doesn't reliably fire on ReplyTo alone, which left the box
+    /// visible-but-collapsed-small after Cancel instead of fully hiding.
+    /// </summary>
     private void OnComposeStateChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ComposeViewModel.ReplyTo))
@@ -53,9 +64,22 @@ public sealed partial class PostCard : UserControl
 
     private void UpdateInlineReplyVisibility()
     {
-        InlineReply.Visibility = Post is not null && ReferenceEquals(ComposeViewModel.Instance.ReplyTo, Post)
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        bool isReplyingHere = Post is not null && ReferenceEquals(ComposeViewModel.Instance.ReplyTo, Post);
+
+        // The box is x:Load="False" and stays unrealized until this card is first replied to.
+        // Realized here - before BeginReply raises FocusRequested - so the new box subscribes
+        // in time to take focus once it loads.
+        if (isReplyingHere)
+        {
+            if (InlineReply is null)
+                FindName(nameof(InlineReply));
+
+            InlineReply!.Visibility = Visibility.Visible;
+        }
+        else if (InlineReply is not null)
+        {
+            InlineReply.Visibility = Visibility.Collapsed;
+        }
     }
 
     public PostItem? Post
