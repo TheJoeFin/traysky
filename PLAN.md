@@ -63,6 +63,28 @@ guaranteed source encoding, so it's decoded and re-encoded to PNG (`BitmapDecode
 `SoftwareBitmap` → `BitmapEncoder`) before going through the same size-limit/mime path as a
 picked file. Same image/video exclusivity and count rules apply either way.
 
+**2026-09-22: memory pass.** From a dump of a Debug build (ARM64), the managed heap was
+only ~7.6 MB; nearly all of the footprint was native (XAML, composition, media, ICU). Changes:
+- `PostCard`'s inline reply `ComposeBox` (a full `RichSuggestBox` editor per card - 37 of them
+  were alive in the dump) is `x:Load="False"`, realized with `FindName` on the card's first reply.
+  `EmbedPresenter` and each of its sections (images, link card, quote, unavailable) are
+  `x:Load`-bound instead of Visibility-bound, so a card builds only the embed layout it uses.
+- Leak fix: `PostCard` subscribed to `ComposeViewModel.PropertyChanged` in its constructor and
+  only unsubscribed on `Unloaded`, so a card that never loaded stayed rooted by the singleton,
+  and through `ThreadRequested` so did its whole `PostPage` (6 were alive in the dump).
+  Singleton subscriptions in `PostCard`/`PostPage`/`ComposePage` are now made on `Loaded` and
+  dropped on `Unloaded`; `ComposeBox` also re-subscribes `FocusRequested` on re-load.
+- The video overlay's `MediaPlayerElement` is `x:Load="False"`: realized when a video opens and
+  unloaded (`UnloadObject`) when it closes, releasing the Media Foundation player.
+- `MemoryTrimService`: 30 s after the popup hides (and 30 s after startup), an aggressive
+  compacting GC (`GCCollectionMode.Aggressive`, which also decommits free GC space) plus
+  `SetProcessWorkingSetSize(-1, -1)` to page out what the hidden window isn't using.
+- csproj runtime settings: non-concurrent GC, TieredPGO off, `UseNls` (no ICU),
+  DI `DisableDynamicEngine`, `EventSourceSupport=false` in Release. See the csproj comment.
+- Not done yet: NativeAOT, the next big step (no JIT, no runtime IL/metadata). It needs
+  idunno's JSON to work without reflection-based serialization, which is why the idunno
+  assemblies are trimmer-rooted today.
+
 ---
 
 ## 1. Stack
