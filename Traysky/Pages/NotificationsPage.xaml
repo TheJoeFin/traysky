@@ -45,7 +45,9 @@
                                 Width="{StaticResource AvatarSize}"
                                 Height="{StaticResource AvatarSize}"
                                 DisplayName="{x:Bind AuthorDisplayName}"
-                                ProfilePicture="{x:Bind helpers:BindHelpers.ImageFromUri(AvatarUri)}" />
+                                PointerPressed="Avatar_PointerPressed"
+                                ProfilePicture="{x:Bind helpers:BindHelpers.ImageFromUri(AvatarUri)}"
+                                ToolTipService.ToolTip="View profile" />
                             <Border
                                 Width="18"
                                 Height="18"

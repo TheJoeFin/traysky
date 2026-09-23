@@ -49,6 +49,7 @@
         </StackPanel>
 
         <PersonPicture
+            x:Name="Avatar"
             Grid.Row="1"
             Grid.RowSpan="4"
             Grid.Column="0"

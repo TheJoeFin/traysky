@@ -72,7 +72,20 @@ public sealed partial class PostCard : UserControl
 
     private void Root_Tapped(object sender, TappedRoutedEventArgs e)
     {
-        if (!IsOpenable || Post is null)
+        if (Post is null)
+            return;
+
+        // A tap on the avatar opens the author's profile, never the thread - checked here as
+        // well as in Avatar_Tapped, since the avatar's own Tapped handler doesn't reliably run
+        // (and mark the tap handled) before it bubbles up to this one.
+        if (IsWithinAvatar(e.OriginalSource as DependencyObject))
+        {
+            e.Handled = true;
+            OpenProfile();
+            return;
+        }
+
+        if (!IsOpenable)
             return;
 
         // Always swallow here, same as Avatar_Tapped/EmbedPresenter's own handlers - leaving
@@ -113,6 +126,16 @@ public sealed partial class PostCard : UserControl
         for (DependencyObject? node = source; node is not null && node != Root; node = VisualTreeHelper.GetParent(node))
         {
             if (node is ButtonBase or TextBox)
+                return true;
+        }
+        return false;
+    }
+
+    private bool IsWithinAvatar(DependencyObject? source)
+    {
+        for (DependencyObject? node = source; node is not null && node != Root; node = VisualTreeHelper.GetParent(node))
+        {
+            if (node == Avatar)
                 return true;
         }
         return false;

@@ -1,6 +1,7 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using System;
@@ -20,6 +21,7 @@ public sealed partial class NotificationsPage : Page
 
     private readonly DispatcherQueueTimer _seenTimer;
     private ScrollViewer? _scrollViewer;
+    private NotificationItem? _avatarPressedItem;
 
     public NotificationsViewModel ViewModel { get; } = NotificationsViewModel.Instance;
 
@@ -68,10 +70,27 @@ public sealed partial class NotificationsPage : Page
             _ = ViewModel.LoadMoreAsync();
     }
 
+    /// <summary>
+    /// ListView raises ItemClick for a click anywhere in the row, and a child marking Tapped
+    /// handled doesn't stop it - so the avatar just notes which row it was pressed on, and
+    /// <see cref="NotificationList_ItemClick"/> opens that author's profile instead of the post.
+    /// </summary>
+    private void Avatar_PointerPressed(object sender, PointerRoutedEventArgs e) =>
+        _avatarPressedItem = (sender as FrameworkElement)?.DataContext as NotificationItem;
+
     private void NotificationList_ItemClick(object sender, ItemClickEventArgs e)
     {
+        bool onAvatar = ReferenceEquals(e.ClickedItem, _avatarPressedItem);
+        _avatarPressedItem = null;
+
         if (e.ClickedItem is not NotificationItem item)
             return;
+
+        if (onAvatar)
+        {
+            ProfilePage.Open(item.AuthorDid.Length > 0 ? item.AuthorDid : item.AuthorHandle);
+            return;
+        }
 
         // Everything opens in-app: a follow shows the follower's profile, everything else the
         // post - hydrated if we have it, fetched by AT URI if not.
