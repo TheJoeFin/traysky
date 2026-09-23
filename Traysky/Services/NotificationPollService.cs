@@ -123,6 +123,19 @@ public sealed partial class NotificationPollService : ObservableObject
                 return;
             }
 
+            if (!await _session.EnsureAuthenticatedAsync().ConfigureAwait(true))
+            {
+                // A rejected refresh token has already signed the user out; anything else
+                // means Bluesky could not be reached to refresh, which is offline.
+                if (_session.IsSignedIn)
+                {
+                    _consecutiveFailures++;
+                    IsOffline = true;
+                    Rearm();
+                }
+                return;
+            }
+
             AtProtoHttpResult<int> result = await _session.Agent.GetNotificationUnreadCount().ConfigureAwait(true);
 
             if (result.Succeeded)
@@ -155,6 +168,12 @@ public sealed partial class NotificationPollService : ObservableObject
             if (result.StatusCode != System.Net.HttpStatusCode.Unauthorized)
                 IsOffline = true;
 
+            Rearm();
+        }
+        catch (AuthenticationRequiredException)
+        {
+            // The token expired between the check above and the call; the next poll refreshes it.
+            LogService.Warn("Poll", "Unread count needed a fresh access token; retrying next poll");
             Rearm();
         }
         catch (Exception ex)

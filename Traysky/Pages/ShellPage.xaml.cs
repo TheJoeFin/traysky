@@ -268,10 +268,14 @@ public sealed partial class ShellPage : Page
 
     private void RefreshButton_Click(object sender, RoutedEventArgs e) => Refresh();
 
-    private void Refresh()
+    private async void Refresh()
     {
         if (!BlueskySessionService.Instance.IsSignedIn)
             return;
+
+        // After sleep the access token may have lapsed; renew it once up front rather than
+        // letting every refresh below fail with AuthenticationRequiredException.
+        await BlueskySessionService.Instance.EnsureAuthenticatedAsync();
 
         _ = NotificationPollService.Instance.PollNowAsync();
 

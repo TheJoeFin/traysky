@@ -37,6 +37,7 @@ public sealed partial class BlueskySessionService : ObservableObject
 
     private readonly DispatcherQueue _dispatcher;
     private readonly BlueskyAgent _agent;
+    private readonly SemaphoreSlim _refreshGate = new(1, 1);
 
     /// <summary>Set while a login/restore is in flight so the agent's events do not double-fire UI updates.</summary>
     private int _transitioning;
@@ -235,6 +236,46 @@ public sealed partial class BlueskySessionService : ObservableObject
         }
 
         await OnUiAsync(ApplySignedOut).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Makes sure the agent holds an unexpired access token, refreshing it if not. The agent
+    /// treats an expired token as "not authenticated" and throws <see cref="AuthenticationRequiredException"/>
+    /// from every call, and its own background refresh timer does not recover when a refresh
+    /// throws (e.g. DNS is not back yet right after the machine wakes). Returns false when
+    /// the token could not be refreshed; a rejected refresh token signs out via
+    /// <see cref="OnTokenRefreshFailed"/>.
+    /// </summary>
+    public async Task<bool> EnsureAuthenticatedAsync(CancellationToken cancellationToken = default)
+    {
+        if (PreviewMode.IsEnabled || _agent.IsAuthenticated)
+            return true;
+
+        if (!IsSignedIn || string.IsNullOrEmpty(_agent.Credentials?.RefreshToken))
+            return false;
+
+        await _refreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            // Another caller may have refreshed while this one waited.
+            if (_agent.IsAuthenticated)
+                return true;
+
+            LogService.Info("Session", "Access token expired; refreshing");
+            bool ok = await _agent.RefreshCredentials(cancellationToken).ConfigureAwait(false);
+            if (!ok)
+                LogService.Warn("Session", "Access token refresh was rejected");
+            return ok;
+        }
+        catch (Exception ex)
+        {
+            LogService.Warn("Session", $"Access token refresh threw: {ex.GetType().Name}: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            _refreshGate.Release();
+        }
     }
 
     private async Task LoadProfileAsync(CancellationToken cancellationToken)
