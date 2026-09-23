@@ -3,13 +3,23 @@
     <Platform Name="ARM64" />
     <Platform Name="x64" />
   </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="CLAUDE.md" />
+    <File Path="LICENSE.txt" />
+    <File Path="nuget.config" />
+    <File Path="PLAN.md" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="Traysky.Tests/Traysky.Tests.csproj">
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
   <Project Path="Traysky/Traysky.csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
     <Deploy />
-  </Project>
-  <Project Path="Traysky.Tests/Traysky.Tests.csproj">
-    <Platform Solution="*|ARM64" Project="ARM64" />
-    <Platform Solution="*|x64" Project="x64" />
   </Project>
 </Solution>

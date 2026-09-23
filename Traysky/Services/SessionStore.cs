@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Traysky.Models;
 using Windows.Storage;
 
@@ -58,7 +60,7 @@ public static class SessionStore
         }
     }
 
-    public static void Save(PersistedSession session)
+    public static async Task Save(PersistedSession session, CancellationToken cancellationToken)
     {
         try
         {
@@ -67,7 +69,7 @@ public static class SessionStore
 
             string path = FilePath;
             string tmp = path + ".tmp";
-            File.WriteAllBytes(tmp, cipher);
+            await File.WriteAllBytesAsync(tmp, cipher, cancellationToken);
             File.Move(tmp, path, overwrite: true);
 
             LogService.Info("SessionStore", $"Saved session for {session.Did}");

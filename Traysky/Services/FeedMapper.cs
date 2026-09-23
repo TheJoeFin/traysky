@@ -158,16 +158,16 @@ public static class FeedMapper
 
             case EmbeddedExternalView external when external.External is not null:
                 {
-                    Uri? uri = external.External.Uri;
+                    Uri? uri = new(external.External.Uri);
                     return new EmbedItem
                     {
                         Kind = EmbedKind.External,
                         ExternalUri = uri,
-                        ExternalHost = uri?.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase) == true ? uri.Host[4..] : uri?.Host,
-                        ExternalTitle = string.IsNullOrWhiteSpace(external.External.Title) ? uri?.Host : external.External.Title,
+                        ExternalHost = uri.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase) == true ? uri.Host[4..] : uri.Host,
+                        ExternalTitle = string.IsNullOrWhiteSpace(external.External.Title) ? uri.Host : external.External.Title,
                         ExternalDescription = external.External.Description,
                         ExternalThumbnail = external.External.ThumbnailUri,
-                        OpenUrl = uri?.ToString()
+                        OpenUrl = uri.ToString()
                     };
                 }
 
