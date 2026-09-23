@@ -79,6 +79,29 @@
                 </Grid>
             </Button>
 
+            <Button
+                HorizontalAlignment="Stretch"
+                Command="{x:Bind ViewModel.SignInWithBrowserCommand}"
+                Content="Sign in with your browser instead"
+                ToolTipService.ToolTip="Approve Traysky on your Bluesky server's own sign-in page. No app password needed." />
+
+            <StackPanel
+                Padding="12"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource ControlCornerRadius}"
+                Spacing="8"
+                Visibility="{x:Bind ViewModel.IsWaitingForBrowser, Mode=OneWay}">
+                <TextBlock
+                    Text="Finish signing in in your browser. Traysky will open again when you approve it."
+                    TextWrapping="Wrap" />
+                <Button
+                    HorizontalAlignment="Left"
+                    Command="{x:Bind ViewModel.CancelBrowserSignInCommand}"
+                    Content="Cancel" />
+            </StackPanel>
+
             <StackPanel Spacing="4">
                 <TextBlock
                     Style="{StaticResource SecondaryTextStyle}"

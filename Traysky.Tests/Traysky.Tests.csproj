@@ -36,6 +36,7 @@
     <Compile Include="..\Traysky\Services\ComposeAttachmentPolicy.cs" Link="Services\ComposeAttachmentPolicy.cs" />
     <Compile Include="..\Traysky\Services\RichSuggestTextPolicy.cs" Link="Services\RichSuggestTextPolicy.cs" />
     <Compile Include="..\Traysky\Services\HashtagSuggestionPolicy.cs" Link="Services\HashtagSuggestionPolicy.cs" />
+    <Compile Include="..\Traysky\Services\OAuthCallbackPolicy.cs" Link="Services\OAuthCallbackPolicy.cs" />
   </ItemGroup>
 
 </Project>

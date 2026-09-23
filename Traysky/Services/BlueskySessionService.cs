@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Traysky.Models;
+using AtHandle = idunno.AtProto.Handle;
 
 namespace Traysky.Services;
 
@@ -20,7 +21,10 @@ public enum LoginOutcome
     /// <summary>The account has email two-factor auth; ask for the code and call login again with it.</summary>
     NeedsAuthFactor,
 
-    Failed
+    Failed,
+
+    /// <summary>The user cancelled, or started another sign-in; nothing to report.</summary>
+    Cancelled
 }
 
 /// <summary>
@@ -39,8 +43,16 @@ public sealed partial class BlueskySessionService : ObservableObject
     private readonly BlueskyAgent _agent;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
 
+    /// <summary>How long a browser sign-in waits for the redirect before giving up.</summary>
+    private static readonly TimeSpan BrowserLoginTimeout = TimeSpan.FromMinutes(10);
+
     /// <summary>Set while a login/restore is in flight so the agent's events do not double-fire UI updates.</summary>
     private int _transitioning;
+
+    /// <summary>The browser sign-in waiting for its redirect, if any. Only one at a time.</summary>
+    private PendingBrowserLogin? _pendingBrowserLogin;
+
+    private sealed record PendingBrowserLogin(OAuthClient Client, string? State, TaskCompletionSource<Uri> Callback);
 
     private BlueskySessionService()
     {
@@ -55,6 +67,15 @@ public sealed partial class BlueskySessionService : ObservableObject
             {
                 HttpUserAgent = $"Traysky/{version} (+https://github.com/TheJoeFin/Traysky)",
                 Timeout = TimeSpan.FromSeconds(30)
+            },
+
+            // Needed for browser sign-in, and also to refresh or revoke an OAuth session restored
+            // from disk: idunno refuses to refresh DPoP credentials without a client id.
+            OAuthOptions = new OAuthOptions
+            {
+                ClientId = OAuthCallbackPolicy.ClientId,
+                ReturnUri = new Uri(OAuthCallbackPolicy.RedirectUri),
+                Scopes = OAuthCallbackPolicy.Scopes
             }
         });
 
@@ -215,6 +236,131 @@ public sealed partial class BlueskySessionService : ObservableObject
         {
             Interlocked.Exchange(ref _transitioning, 0);
         }
+    }
+
+    /// <summary>
+    /// Signs in through the browser with atproto OAuth: opens the account's authorization
+    /// server, then waits for <see cref="TryCompleteBrowserLogin"/> to hand over the redirect.
+    /// Starting another browser sign-in, cancelling <paramref name="cancellationToken"/> or
+    /// the timeout ends the wait with <see cref="LoginOutcome.Cancelled"/>.
+    /// </summary>
+    public async Task<(LoginOutcome Outcome, string? Error)> LoginWithBrowserAsync(
+        string handle,
+        CancellationToken cancellationToken = default)
+    {
+        string identifier = BlueskyLinks.NormalizeHandle(handle);
+        if (!AtHandle.TryParse(identifier, out AtHandle? atHandle) || atHandle is null)
+            return (LoginOutcome.Failed, "Enter your handle, like alice.bsky.social.");
+
+        OAuthClient client = _agent.CreateOAuthClient();
+        Uri startUri;
+        try
+        {
+            // Resolves the handle to its PDS and authorization server, then pushes the
+            // authorization request (PAR); the returned URI only carries client_id and request_uri.
+            startUri = await _agent.BuildOAuth2LoginUri(client, atHandle, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return (LoginOutcome.Cancelled, null);
+        }
+        catch (Exception ex)
+        {
+            LogService.Warn("Session", $"Browser sign-in could not start: {ex.GetType().Name}: {ex.Message}");
+            return (LoginOutcome.Failed, "Couldn't reach that account's Bluesky server. Check the handle and your connection.");
+        }
+
+        PendingBrowserLogin pending = new(client, client.State?.State, new(TaskCreationOptions.RunContinuationsAsynchronously));
+        Interlocked.Exchange(ref _pendingBrowserLogin, pending)?.Callback.TrySetCanceled();
+
+        Uri callback;
+        try
+        {
+            OAuthClient.OpenBrowser(startUri);
+            LogService.Info("Session", "Waiting for browser sign-in");
+
+            using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(BrowserLoginTimeout);
+            callback = await pending.Callback.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            if (pending.Callback.Task.IsCanceled || cancellationToken.IsCancellationRequested)
+                return (LoginOutcome.Cancelled, null);
+
+            LogService.Warn("Session", "Browser sign-in timed out");
+            return (LoginOutcome.Failed, "Sign in timed out. Try again.");
+        }
+        catch (Exception ex)
+        {
+            LogService.Error("Session", "Could not open the browser for sign-in", ex);
+            return (LoginOutcome.Failed, "Couldn't open your browser.");
+        }
+        finally
+        {
+            Interlocked.CompareExchange(ref _pendingBrowserLogin, null, pending);
+        }
+
+        if (OAuthCallbackPolicy.ErrorMessage(callback) is string denied)
+        {
+            LogService.Warn("Session", $"Browser sign-in returned error {OAuthCallbackPolicy.GetQueryValue(callback, "error")}");
+            return (LoginOutcome.Failed, denied);
+        }
+
+        Interlocked.Exchange(ref _transitioning, 1);
+        try
+        {
+            // Exchanges the code for DPoP-bound tokens and logs the agent in; the Authenticated
+            // event persists them (including the proof key) like any other session.
+            if (!await _agent.ProcessOAuth2LoginResponse(pending.Client, callback.ToString(), cancellationToken).ConfigureAwait(false))
+            {
+                LogService.Warn("Session", "Browser sign-in response was rejected");
+                return (LoginOutcome.Failed, "Bluesky didn't accept the sign-in. Try again.");
+            }
+
+            LogService.Info("Session", $"Signed in as {identifier} (OAuth)");
+            await OnUiAsync(() => ApplySignedIn(identifier)).ConfigureAwait(false);
+            await LoadProfileAsync(cancellationToken).ConfigureAwait(false);
+            return (LoginOutcome.Success, null);
+        }
+        catch (Exception ex)
+        {
+            LogService.Error("Session", "Browser sign-in failed", ex);
+            return (LoginOutcome.Failed, "Couldn't finish signing in. Try again.");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _transitioning, 0);
+        }
+    }
+
+    /// <summary>
+    /// Hands an OAuth redirect (from protocol activation) to the browser sign-in waiting for
+    /// it. Returns false when <paramref name="uri"/> is not an OAuth callback at all. The URI
+    /// carries a one-time authorization code, so it is never logged.
+    /// </summary>
+    public bool TryCompleteBrowserLogin(Uri uri)
+    {
+        if (!OAuthCallbackPolicy.IsCallback(uri))
+            return false;
+
+        PendingBrowserLogin? pending = Volatile.Read(ref _pendingBrowserLogin);
+        if (pending is null)
+        {
+            LogService.Warn("Session", "OAuth redirect arrived with no sign-in in progress; ignoring it");
+            return true;
+        }
+
+        // A stale tab from an earlier attempt must not complete the current one.
+        if (pending.State is not null
+            && !string.Equals(OAuthCallbackPolicy.GetQueryValue(uri, "state"), pending.State, StringComparison.Ordinal))
+        {
+            LogService.Warn("Session", "OAuth redirect did not match the sign-in in progress; ignoring it");
+            return true;
+        }
+
+        pending.Callback.TrySetResult(uri);
+        return true;
     }
 
     public async Task LogoutAsync()

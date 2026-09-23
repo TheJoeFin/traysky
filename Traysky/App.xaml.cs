@@ -12,6 +12,7 @@ using Traysky.Controls;
 using Traysky.Models;
 using Traysky.Services;
 using Windows.UI.ViewManagement;
+using IProtocolActivatedEventArgs = Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs;
 using Windows.Win32;
 using WinUIEx;
 
@@ -58,12 +59,41 @@ public partial class App : Application
         const string mutexName = "Global\\Traysky_SingleInstance_Mutex";
         const string restoreEventName = "Global\\Traysky_RestoreTrayIcon_Event";
 
+        AppActivationArguments? activation = null;
+        try
+        {
+            activation = AppInstance.GetCurrent().GetActivatedEventArgs();
+        }
+        catch (Exception ex)
+        {
+            LogService.Warn("App", $"Activation args unavailable: {ex.Message}");
+        }
+
         try
         {
             _singleInstanceMutex = new Mutex(true, mutexName, out bool createdNew);
 
             if (!createdNew)
             {
+                // The browser's OAuth redirect starts a new process; the sign-in it belongs to
+                // lives in the running one, so pass the activation over before bowing out.
+                if (activation?.Kind == ExtendedActivationKind.Protocol)
+                {
+                    try
+                    {
+                        AppInstance main = AppInstance.FindOrRegisterForKey(MainInstanceKey);
+                        if (!main.IsCurrent)
+                            await main.RedirectActivationToAsync(activation);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.Error("App", "Could not redirect protocol activation to the running instance", ex);
+                    }
+
+                    ShutdownAndExit();
+                    return;
+                }
+
                 // Another instance is running: ask it to (re)show its tray icon and bow out.
                 try
                 {
@@ -117,18 +147,22 @@ public partial class App : Application
         ToastService.Register(destination => ShowFlyout(destination));
         _announcer = new NotificationAnnouncer(() => _trayPopupWindow?.IsPopupVisible == true);
 
-        // A toast can launch the app; land on what it pointed at once the session is back.
-        ShellDestination? launchDestination = null;
+        // Later launches that carry a protocol URI (the OAuth redirect) are redirected here by
+        // the duplicate instance above.
         try
         {
-            AppActivationArguments activation = AppInstance.GetCurrent().GetActivatedEventArgs();
-            if (activation.Kind == ExtendedActivationKind.AppNotification)
-                launchDestination = ToastService.DestinationFromLaunch(activation.Data as AppNotificationActivatedEventArgs);
+            AppInstance.FindOrRegisterForKey(MainInstanceKey);
+            AppInstance.GetCurrent().Activated += OnRedirectedActivation;
         }
         catch (Exception ex)
         {
-            LogService.Warn("App", $"Activation args unavailable: {ex.Message}");
+            LogService.Warn("App", $"Could not register for redirected activation: {ex.Message}");
         }
+
+        // A toast can launch the app; land on what it pointed at once the session is back.
+        ShellDestination? launchDestination = null;
+        if (activation?.Kind == ExtendedActivationKind.AppNotification)
+            launchDestination = ToastService.DestinationFromLaunch(activation.Data as AppNotificationActivatedEventArgs);
 
         bool restored = await session.TryRestoreAsync();
         LogService.Info("App", restored ? $"Session restored for @{session.Handle}" : "No saved session");
@@ -137,6 +171,30 @@ public partial class App : Application
             ShowFlyout(destination);
         else if (!restored)
             ShowFlyout(ShellDestination.Current); // first run / signed out: show the login page
+        else if (activation?.Kind == ExtendedActivationKind.Protocol)
+            HandleProtocolActivation(activation);
+    }
+
+    // ---- Protocol activation (OAuth redirect) ----------------------------------------------
+
+    private const string MainInstanceKey = "main";
+
+    /// <summary>Raised on a background thread when a duplicate instance redirects its activation here.</summary>
+    private void OnRedirectedActivation(object? sender, AppActivationArguments args)
+    {
+        if (args.Kind == ExtendedActivationKind.Protocol)
+            _uiDispatcherQueue?.TryEnqueue(() => HandleProtocolActivation(args));
+    }
+
+    private void HandleProtocolActivation(AppActivationArguments args)
+    {
+        if (args.Data is not IProtocolActivatedEventArgs protocol)
+            return;
+
+        // Whether it completes a sign-in or arrives stale, bring the flyout up so the user
+        // lands back in the app instead of staring at the browser.
+        if (BlueskySessionService.Instance.TryCompleteBrowserLogin(protocol.Uri))
+            ShowFlyout(ShellDestination.Current);
     }
 
     // ---- Tray icon -------------------------------------------------------------------------

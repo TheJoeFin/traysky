@@ -52,6 +52,14 @@
           <uap5:StartupTask TaskId="TrayskyStartup" Enabled="false" DisplayName="Traysky" />
         </uap5:Extension>
 
+        <!-- OAuth sign-in: the browser redirects to io.github.thejoefin:/traysky/callback. atproto
+             requires the scheme to be the client_id host reversed; see OAuthCallbackPolicy. -->
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="io.github.thejoefin">
+            <uap:DisplayName>Traysky sign-in</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
+
         <!-- App notifications (toasts): the CLSID Windows activates when a toast is clicked, and the
              COM server that CLSID maps to. Both must carry the same GUID. -->
         <desktop:Extension Category="windows.toastNotificationActivation">
