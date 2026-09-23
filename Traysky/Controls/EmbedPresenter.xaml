@@ -30,8 +30,11 @@
 
     <StackPanel x:Name="Root" Spacing="6">
 
+        <!--  Each section below is x:Load'ed rather than collapsed: a card realizes only the one
+              layout its embed actually uses, instead of building (and holding) all of them.  -->
+
         <!--  Images (also the thumbnail of a video)  -->
-        <Grid x:Name="ImagesHost" Visibility="{x:Bind Embed.HasImages, Mode=OneWay}">
+        <Grid x:Name="ImagesHost" x:Load="{x:Bind Embed.HasImages, Mode=OneWay, FallbackValue=False}">
             <ItemsRepeater x:Name="ImagesRepeater" ItemTemplate="{StaticResource ImageTemplate}" ItemsSource="{x:Bind Embed.Images, Mode=OneWay}">
                 <ItemsRepeater.Layout>
                     <UniformGridLayout
@@ -61,8 +64,8 @@
         <Border
             x:Name="ExternalCard"
             Style="{StaticResource EmbedCardStyle}"
-            Tapped="External_Tapped"
-            Visibility="{x:Bind Embed.IsExternal, Mode=OneWay}">
+            x:Load="{x:Bind Embed.IsExternal, Mode=OneWay, FallbackValue=False}"
+            Tapped="External_Tapped">
             <Grid ColumnSpacing="10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -111,8 +114,8 @@
             x:Name="QuoteCard"
             Padding="10"
             Style="{StaticResource EmbedCardStyle}"
-            Tapped="Quote_Tapped"
-            Visibility="{x:Bind QuoteVisibility(Embed), Mode=OneWay}">
+            x:Load="{x:Bind Embed.HasQuote, Mode=OneWay, FallbackValue=False}"
+            Tapped="Quote_Tapped">
             <StackPanel Spacing="6">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <PersonPicture
@@ -153,9 +156,10 @@
 
         <!--  Deleted / blocked quote  -->
         <Border
+            x:Name="UnavailableCard"
             Padding="10"
-            Style="{StaticResource EmbedCardStyle}"
-            Visibility="{x:Bind Embed.IsUnavailable, Mode=OneWay}">
+            x:Load="{x:Bind Embed.IsUnavailable, Mode=OneWay, FallbackValue=False}"
+            Style="{StaticResource EmbedCardStyle}">
             <TextBlock Style="{StaticResource SecondaryTextStyle}" Text="Post unavailable" />
         </Border>
     </StackPanel>

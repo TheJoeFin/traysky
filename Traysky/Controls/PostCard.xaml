@@ -108,13 +108,16 @@
             Style="{StaticResource PostTextStyle}"
             Visibility="{x:Bind Post.HasText, Mode=OneWay}" />
 
+        <!--  x:Load, not Visibility: most posts have no embed, and a collapsed presenter
+              would still build its whole tree.  -->
         <local:EmbedPresenter
+            x:Name="EmbedView"
             Grid.Row="4"
             Grid.Column="1"
             Margin="0,8,0,0"
+            x:Load="{x:Bind Post.HasEmbed, Mode=OneWay, FallbackValue=False}"
             Embed="{x:Bind Post.Embed, Mode=OneWay}"
-            FallbackUrl="{x:Bind Post.WebUrl, Mode=OneWay}"
-            Visibility="{x:Bind Post.HasEmbed, Mode=OneWay}" />
+            FallbackUrl="{x:Bind Post.WebUrl, Mode=OneWay}" />
 
         <!--  Actions  -->
         <Grid

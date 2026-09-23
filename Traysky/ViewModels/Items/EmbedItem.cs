@@ -54,6 +54,7 @@ public sealed class EmbedItem
 
     public bool HasImages => Images.Count > 0;
     public bool HasQuoteImages => QuoteImages.Count > 0;
+    public bool HasQuote => QuoteAtUri is not null;
     public bool HasExternalThumbnail => ExternalThumbnail is not null;
     public bool HasQuoteAvatar => QuoteAuthorAvatar is not null;
     public bool HasQuoteText => !string.IsNullOrEmpty(QuoteText);

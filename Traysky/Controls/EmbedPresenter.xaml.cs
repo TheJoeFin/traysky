@@ -39,8 +39,6 @@ public sealed partial class EmbedPresenter : UserControl
         set => SetValue(FallbackUrlProperty, value);
     }
 
-    public Visibility QuoteVisibility(EmbedItem? embed) => embed?.QuoteAtUri is not null ? Visibility.Visible : Visibility.Collapsed;
-
     public string AtHandle(string? handle) => string.IsNullOrEmpty(handle) ? string.Empty : "@" + handle;
 
     private void Image_Tapped(object sender, TappedRoutedEventArgs e)
