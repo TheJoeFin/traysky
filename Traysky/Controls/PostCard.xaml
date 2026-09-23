@@ -180,7 +180,7 @@
                         <MenuFlyout Placement="BottomEdgeAlignedRight">
                             <MenuFlyoutItem Click="Quote_Click" Text="Quote post">
                                 <MenuFlyoutItem.Icon>
-                                    <FontIcon Glyph="&#xE9B7;" />
+                                    <FontIcon Glyph="&#xE9B2;" />
                                 </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                             <MenuFlyoutItem Click="CopyLink_Click" Text="Copy link">
