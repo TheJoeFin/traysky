@@ -60,17 +60,43 @@ public static class SessionStore
         }
     }
 
-    public static async Task Save(PersistedSession session, CancellationToken cancellationToken)
+    // Save and Clear share one file (and one .tmp beside it), so they take turns. The
+    // generation moves on every Clear, the moment it is called: a save that was queued before
+    // a sign-out sees the change and drops its tokens instead of bringing the account back.
+    private static readonly SemaphoreSlim Gate = new(1, 1);
+    private static int _generation;
+    private static long _lastSaveSequence;
+    private static long _lastWrittenSequence;
+
+    public static async Task Save(PersistedSession session)
     {
+        int generation = Volatile.Read(ref _generation);
+        long sequence = Interlocked.Increment(ref _lastSaveSequence);
+
+        await Gate.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (generation != Volatile.Read(ref _generation))
+            {
+                LogService.Info("SessionStore", "Skipped a save that was queued before sign-out");
+                return;
+            }
+
+            // The lock does not queue in order, so an older token pair can arrive after a newer
+            // one has been written. Never step back.
+            if (sequence < _lastWrittenSequence)
+                return;
+
             byte[] plain = JsonSerializer.SerializeToUtf8Bytes(session, SessionJsonContext.Default.PersistedSession);
             byte[] cipher = ProtectedData.Protect(plain, Entropy, DataProtectionScope.CurrentUser);
 
+            // Not cancellable on purpose: once a refresh has swapped tokens with the server, the
+            // old refresh token is spent, and a half-done save would sign the user out next launch.
             string path = FilePath;
             string tmp = path + ".tmp";
-            await File.WriteAllBytesAsync(tmp, cipher, cancellationToken);
+            await File.WriteAllBytesAsync(tmp, cipher).ConfigureAwait(false);
             File.Move(tmp, path, overwrite: true);
+            _lastWrittenSequence = sequence;
 
             LogService.Info("SessionStore", $"Saved session for {session.Did}");
         }
@@ -78,10 +104,22 @@ public static class SessionStore
         {
             LogService.Error("SessionStore", "Could not save session", ex);
         }
+        finally
+        {
+            Gate.Release();
+        }
     }
 
-    public static void Clear()
+    /// <summary>
+    /// Deletes the saved session. Any save that has not reached the file yet is dropped as soon
+    /// as this is called, so fire-and-forget callers are safe; await it when the file must be
+    /// gone before carrying on.
+    /// </summary>
+    public static async Task Clear()
     {
+        Interlocked.Increment(ref _generation);
+
+        await Gate.WaitAsync().ConfigureAwait(false);
         try
         {
             if (File.Exists(FilePath))
@@ -93,6 +131,10 @@ public static class SessionStore
         catch (Exception ex)
         {
             LogService.Warn("SessionStore", $"Could not clear session: {ex.Message}");
+        }
+        finally
+        {
+            Gate.Release();
         }
     }
 }

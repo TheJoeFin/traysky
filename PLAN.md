@@ -209,10 +209,10 @@ _agent = new BlueskyAgent(new BlueskyAgentOptions
     },
     // EnableBackgroundTokenRefresh stays true (default) — the agent refreshes for us.
 });
-_agent.Authenticated      += (_, e) => SessionStore.Save(FromCredentials(_agent.Credentials));
-_agent.CredentialsUpdated += (_, e) => SessionStore.Save(FromCredentials(_agent.Credentials));
-_agent.TokenRefreshFailed += (_, e) => { SessionStore.Clear(); SignedOut?.Invoke(...); };
-_agent.Unauthenticated    += (_, e) => { SessionStore.Clear(); SignedOut?.Invoke(...); };
+_agent.Authenticated      += async (_, e) => { try { await SessionStore.Save(From(e.AccessCredentials)); } catch { /* log */ } };
+_agent.CredentialsUpdatedAsync = (e, ct) => SessionStore.Save(From(e.AccessCredentials)); // ct ignored: a half-written save loses the spent refresh token
+_agent.TokenRefreshFailed += (_, e) => { _ = SessionStore.Clear(); SignedOut?.Invoke(...); };
+_agent.Unauthenticated    += (_, e) => { _ = SessionStore.Clear(); SignedOut?.Invoke(...); };
 ```
 
 ### 4.2 Login (M1) — handle + app password
@@ -240,7 +240,9 @@ if (s is not null)
 
 `SessionStore` = `JsonSerializer` (source-generated context — the app is trimmed) →
 `ProtectedData.Protect(bytes, null, DataProtectionScope.CurrentUser)` → `session.bin` in
-`ApplicationData.Current.LocalFolder`. Delete file on logout / refresh failure.
+`ApplicationData.Current.LocalFolder`. Delete file on logout / refresh failure. `Save` and `Clear`
+are async and share one `SemaphoreSlim`; `Clear` bumps a generation counter first, so a save queued
+before sign-out is dropped rather than bringing the account back.
 
 ### 4.4 Notifications (M2)
 

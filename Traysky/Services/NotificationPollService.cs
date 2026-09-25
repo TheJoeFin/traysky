@@ -147,7 +147,7 @@ public sealed partial class NotificationPollService : ObservableObject
                 // Count first, then the poll timestamp: the announcer takes the first
                 // successful poll as its baseline, so this order keeps the count found on
                 // launch from being toasted as if it were new.
-               SetUnread(result.Result.Value);
+                SetUnread(result.Result ?? 0);
                 LastSuccessfulPollUtc = DateTimeOffset.UtcNow;
 
                 if (wasBackedOff)
