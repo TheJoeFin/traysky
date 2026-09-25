@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -13,7 +13,7 @@
   <Identity
     Name="Traysky"
      Publisher="CN=Joseph Finney, O=Joseph Finney, L=Milwaukee, S=Wisconsin, C=US, PostalCode=53212"
-    Version="0.1.0.0" />
+    Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="6d2a9f7e-3c41-4b8a-9d0e-5b1f2c7a8e43" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
