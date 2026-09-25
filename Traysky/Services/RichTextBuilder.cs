@@ -74,7 +74,7 @@ public static class RichTextBuilder
 
         try
         {
-            if (Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp))
+            if (BlueskyLinks.TryParseWebUri(url, out Uri? uri))
                 await Launcher.LaunchUriAsync(uri);
         }
         catch (Exception ex)

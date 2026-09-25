@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Traysky.Services;
 
@@ -46,6 +47,23 @@ public static class BlueskyLinks
 
         return handle.StartsWith("did:", StringComparison.OrdinalIgnoreCase) ? handle : handle.ToLowerInvariant();
     }
+
+    /// <summary>
+    /// True when <paramref name="url"/> is an absolute http(s) URL, the only kind Traysky hands to
+    /// the browser or loads as an image. Keeps file:, ms-appdata: and custom protocol links out.
+    /// </summary>
+    public static bool TryParseWebUri(string? url, [NotNullWhen(true)] out Uri? uri)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out uri) && IsWebUri(uri))
+            return true;
+
+        uri = null;
+        return false;
+    }
+
+    /// <summary>True when <paramref name="uri"/> is an absolute http(s) URL.</summary>
+    public static bool IsWebUri([NotNullWhen(true)] Uri? uri) =>
+        uri is { IsAbsoluteUri: true } && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp);
 
     public static bool TryParseAtUri(string? atUri, out string authority, out string collection, out string rkey)
     {

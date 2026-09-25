@@ -238,7 +238,7 @@ public sealed partial class ProfileViewModel : ObservableObject
             {
                 if (_followUri is null)
                     return;
-                AtProtoHttpResult<Commit> result = await agent.DeleteFollow(new AtUri(_followUri));
+                AtProtoHttpResult<DeleteResult> result = await agent.DeleteFollow(new AtUri(_followUri));
                 if (result.Succeeded)
                 {
                     _followUri = null;

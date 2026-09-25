@@ -31,7 +31,7 @@ public static class PostInteractions
                 if (previousLikeUri is null)
                     return; // nothing to undo server-side; local state was already wrong
 
-                AtProtoHttpResult<Commit> result = await BlueskySessionService.Instance.Agent.DeleteLike(new AtUri(previousLikeUri));
+                AtProtoHttpResult<DeleteResult> result = await BlueskySessionService.Instance.Agent.DeleteLike(new AtUri(previousLikeUri));
                 if (result.Succeeded)
                 {
                     post.LikeUri = null;
@@ -89,7 +89,7 @@ public static class PostInteractions
                 if (previousRepostUri is null)
                     return;
 
-                AtProtoHttpResult<Commit> result = await BlueskySessionService.Instance.Agent.DeleteRepost(new AtUri(previousRepostUri));
+                AtProtoHttpResult<DeleteResult> result = await BlueskySessionService.Instance.Agent.DeleteRepost(new AtUri(previousRepostUri));
                 if (result.Succeeded)
                 {
                     post.RepostUri = null;

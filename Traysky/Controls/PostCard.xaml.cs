@@ -33,9 +33,23 @@ public sealed partial class PostCard : UserControl
     /// </summary>
     public event EventHandler<PostItem>? ThreadRequested;
 
+    // The post text is selectable. A click that only clears a selection shouldn't also open the
+    // thread, and by the time Tapped arrives the selection is already gone, so remember whether
+    // there was one just before the last change.
+    private bool _textHasSelection;
+    private bool _textHadSelection;
+    private DateTime _textSelectionChangedUtc;
+
     public PostCard()
     {
         InitializeComponent();
+
+        PostText.SelectionChanged += (_, _) =>
+        {
+            _textHadSelection = _textHasSelection;
+            _textHasSelection = PostText.SelectedText.Length > 0;
+            _textSelectionChangedUtc = DateTime.UtcNow;
+        };
 
         // Subscribed only while in the tree. Subscribing in the constructor leaked every card
         // that was created but never loaded (so never got an Unloaded) - and with it, through
@@ -127,6 +141,9 @@ public sealed partial class PostCard : UserControl
         if (IsWithinInteractiveControl(e.OriginalSource as DependencyObject))
             return;
 
+        if (IsWithin(e.OriginalSource as DependencyObject, PostText) && IsSelectingText())
+            return;
+
         // Hyperlinks inside the RichTextBlock are Inlines, not UIElements, so they can't be
         // caught by the walk above and their Click can land after this Tapped. Decide a beat
         // later so a link click opens the link and nothing else.
@@ -136,7 +153,8 @@ public sealed partial class PostCard : UserControl
         timer.IsRepeating = false;
         timer.Tick += (_, _) =>
         {
-            if (!RichTextBuilder.WasLinkClickedRecently())
+            // A double-click that selects a word lands here too; its selection is in by now.
+            if (!RichTextBuilder.WasLinkClickedRecently() && PostText.SelectedText.Length == 0)
                 ThreadRequested?.Invoke(this, post);
         };
         timer.Start();
@@ -155,19 +173,27 @@ public sealed partial class PostCard : UserControl
         return false;
     }
 
-    private bool IsWithinAvatar(DependencyObject? source)
+    private bool IsWithinAvatar(DependencyObject? source) => IsWithin(source, Avatar);
+
+    private bool IsWithin(DependencyObject? source, DependencyObject target)
     {
         for (DependencyObject? node = source; node is not null && node != Root; node = VisualTreeHelper.GetParent(node))
         {
-            if (node == Avatar)
+            if (node == target)
                 return true;
         }
         return false;
     }
 
+    /// <summary>True when the text has a selection, or this tap has just cleared one.</summary>
+    private bool IsSelectingText() =>
+        _textHasSelection
+        || (_textHadSelection && DateTime.UtcNow - _textSelectionChangedUtc < TimeSpan.FromMilliseconds(500));
+
     private static void OnPostChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         PostCard card = (PostCard)d;
+        card._textHasSelection = card._textHadSelection = false;
         if (e.NewValue is PostItem post)
             RichTextBuilder.Populate(card.PostText, post.Segments);
         else

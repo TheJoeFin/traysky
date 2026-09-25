@@ -80,7 +80,7 @@ public sealed partial class BlueskySessionService : ObservableObject
         });
 
         _agent.Authenticated += OnAuthenticated;
-        _agent.CredentialsUpdated += OnCredentialsUpdated;
+        _agent.CredentialsUpdatedAsync = CredentialsUpdatedAsync;
         _agent.TokenRefreshFailed += OnTokenRefreshFailed;
         _agent.Unauthenticated += OnUnauthenticated;
     }
@@ -155,7 +155,7 @@ public sealed partial class BlueskySessionService : ObservableObject
             if (!ok)
             {
                 LogService.Warn("Session", "Saved session could not be refreshed; clearing it");
-                SessionStore.Clear();
+                await SessionStore.Clear().ConfigureAwait(false);
                 await OnUiAsync(() => ApplySignedOut()).ConfigureAwait(false);
                 return false;
             }
@@ -368,7 +368,7 @@ public sealed partial class BlueskySessionService : ObservableObject
         Interlocked.Exchange(ref _transitioning, 1);
         try
         {
-            SessionStore.Clear();
+            await SessionStore.Clear().ConfigureAwait(false);
             if (_agent.IsAuthenticated)
                 await _agent.Logout().ConfigureAwait(false);
         }
@@ -378,6 +378,9 @@ public sealed partial class BlueskySessionService : ObservableObject
         }
         finally
         {
+            // Again, in case a background refresh saved new tokens while the agent was still
+            // signed in, between the first clear and the logout finishing.
+            await SessionStore.Clear().ConfigureAwait(false);
             Interlocked.Exchange(ref _transitioning, 0);
         }
 
@@ -472,9 +475,21 @@ public sealed partial class BlueskySessionService : ObservableObject
 
     // ---- Agent events (thread-pool threads) --------------------------------------------
 
-    private void OnAuthenticated(object? sender, AuthenticatedEventArgs e) => Persist(e.AccessCredentials);
+    private async void OnAuthenticated(object? sender, AuthenticatedEventArgs e)
+    {
+        // async void: anything that escapes here takes the app down.
+        try
+        {
+            await Persist(e.AccessCredentials).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            LogService.Error("Session", "Could not persist session after sign-in", ex);
+        }
+    }
 
-    private void OnCredentialsUpdated(object? sender, CredentialsUpdatedEventArgs e) => Persist(e.AccessCredentials);
+    // The token is ignored on purpose; see SessionStore.Save.
+    private Task CredentialsUpdatedAsync(CredentialsUpdatedEventArgs e, CancellationToken cancellationToken) => Persist(e.AccessCredentials);
 
     private void OnTokenRefreshFailed(object? sender, TokenRefreshFailedEventArgs e)
     {
@@ -485,7 +500,7 @@ public sealed partial class BlueskySessionService : ObservableObject
         // as "signed out".
         if (e.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.BadRequest)
         {
-            SessionStore.Clear();
+            _ = SessionStore.Clear();
             if (Volatile.Read(ref _transitioning) == 0)
                 _dispatcher.TryEnqueue(ApplySignedOut);
         }
@@ -493,12 +508,12 @@ public sealed partial class BlueskySessionService : ObservableObject
 
     private void OnUnauthenticated(object? sender, UnauthenticatedEventArgs e)
     {
-        SessionStore.Clear();
+        _ = SessionStore.Clear();
         if (Volatile.Read(ref _transitioning) == 0)
             _dispatcher.TryEnqueue(ApplySignedOut);
     }
 
-    private void Persist(AccessCredentials? credentials)
+    private async Task Persist(AccessCredentials? credentials)
     {
         if (credentials is null || string.IsNullOrEmpty(credentials.RefreshToken))
             return;
@@ -511,7 +526,7 @@ public sealed partial class BlueskySessionService : ObservableObject
             nonce = dpop.DPoPNonce;
         }
 
-        SessionStore.Save(new PersistedSession
+        await SessionStore.Save(new PersistedSession
         {
             Service = credentials.Service.ToString(),
             Did = credentials.Did?.ToString() ?? _agent.Did?.ToString() ?? string.Empty,
@@ -521,7 +536,7 @@ public sealed partial class BlueskySessionService : ObservableObject
             DPoPProofKey = proofKey,
             DPoPNonce = nonce,
             SavedAtUtc = DateTimeOffset.UtcNow
-        });
+        }).ConfigureAwait(false);
     }
 
     private Task OnUiAsync(Action action)
