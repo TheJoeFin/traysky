@@ -158,21 +158,24 @@ public static class FeedMapper
 
             case EmbeddedExternalView external when external.External is not null:
                 {
-                    if (Uri.TryCreate(external.External.Uri, UriKind.Absolute, out Uri? uri) == false)
+                    // A link that isn't http(s) still shows its card, just without anything to open.
+                    BlueskyLinks.TryParseWebUri(external.External.Uri, out Uri? uri);
+                    string? host = uri is null ? null
+                        : uri.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? uri.Host[4..] : uri.Host;
+                    string? title = string.IsNullOrWhiteSpace(external.External.Title) ? host : external.External.Title;
+                    if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(external.External.Description))
                         return null;
 
-                    if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
-                        return null;
-
+                    Uri? thumbnail = external.External.ThumbnailUri;
                     return new EmbedItem
                     {
                         Kind = EmbedKind.External,
                         ExternalUri = uri,
-                        ExternalHost = uri.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase) == true ? uri.Host[4..] : uri.Host,
-                        ExternalTitle = string.IsNullOrWhiteSpace(external.External.Title) ? uri.Host : external.External.Title,
+                        ExternalHost = host,
+                        ExternalTitle = title,
                         ExternalDescription = external.External.Description,
-                        ExternalThumbnail = external.External.ThumbnailUri,
-                        OpenUrl = uri.ToString()
+                        ExternalThumbnail = BlueskyLinks.IsWebUri(thumbnail) ? thumbnail : null,
+                        OpenUrl = uri?.ToString()
                     };
                 }
 

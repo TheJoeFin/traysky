@@ -253,6 +253,31 @@ public class BlueskyLinksTests
     {
         Assert.AreEqual("https://bsky.app/hashtag/caf%C3%A9", BlueskyLinks.HashtagUrl("#café"));
     }
+
+    [TestMethod]
+    public void TryParseWebUri_AcceptsOnlyAbsoluteHttp()
+    {
+        Assert.IsTrue(BlueskyLinks.TryParseWebUri("https://example.com/a?b=c", out Uri? https));
+        Assert.AreEqual("example.com", https!.Host);
+        Assert.IsTrue(BlueskyLinks.TryParseWebUri("HTTP://example.com", out _));
+
+        Assert.IsFalse(BlueskyLinks.TryParseWebUri("file:///C:/Windows/win.ini", out Uri? rejected));
+        Assert.IsNull(rejected);
+        Assert.IsFalse(BlueskyLinks.TryParseWebUri("ms-appdata:///local/session.bin", out _));
+        Assert.IsFalse(BlueskyLinks.TryParseWebUri("javascript:alert(1)", out _));
+        Assert.IsFalse(BlueskyLinks.TryParseWebUri("/relative/path", out _));
+        Assert.IsFalse(BlueskyLinks.TryParseWebUri("", out _));
+        Assert.IsFalse(BlueskyLinks.TryParseWebUri(null, out _));
+    }
+
+    [TestMethod]
+    public void IsWebUri_RejectsLocalAndRelative()
+    {
+        Assert.IsTrue(BlueskyLinks.IsWebUri(new Uri("https://cdn.bsky.app/img/x.jpg")));
+        Assert.IsFalse(BlueskyLinks.IsWebUri(new Uri("file:///C:/x.jpg")));
+        Assert.IsFalse(BlueskyLinks.IsWebUri(new Uri("x.jpg", UriKind.Relative)));
+        Assert.IsFalse(BlueskyLinks.IsWebUri(null));
+    }
 }
 
 [TestClass]
