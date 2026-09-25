@@ -158,7 +158,12 @@ public static class FeedMapper
 
             case EmbeddedExternalView external when external.External is not null:
                 {
-                    Uri? uri = new(external.External.Uri);
+                    if (Uri.TryCreate(external.External.Uri, UriKind.Absolute, out Uri? uri) == false)
+                        return null;
+
+                    if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+                        return null;
+
                     return new EmbedItem
                     {
                         Kind = EmbedKind.External,
