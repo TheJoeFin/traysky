@@ -97,7 +97,7 @@ only ~7.6 MB; nearly all of the footprint was native (XAML, composition, media, 
 | MVVM | CommunityToolkit.Mvvm 8.4.x | Same as Traydio |
 | P/Invoke | Microsoft.Windows.CsWin32 | Needed by the ported `WindowPlacementService` / popup window |
 | Tests | MSTest, linked-file pattern from `Trdo.Tests.csproj` | Keeps policies testable without loading WinUI |
-| Secrets | DPAPI (`ProtectedData`, CurrentUser scope) → file in `ApplicationData.LocalFolder` | Refresh token + (later) DPoP key are bigger than PasswordVault is comfortable with |
+| Secrets | DPAPI (`ProtectedData`, CurrentUser scope) → file in `ApplicationData.LocalFolder` | An OAuth session (refresh token + DPoP key) is ~2.2 KB UTF-8; Credential Manager caps secrets at 2560 bytes and PasswordVault stores UTF-16 (see #9) |
 | Toasts | `Microsoft.Windows.AppNotifications` (Windows App SDK) | Real Action Center toasts that respect Focus Assist |
 
 Trimming: Traydio publishes `PublishTrimmed=true` in Release. idunno.Bluesky documents trim +

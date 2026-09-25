@@ -11,9 +11,13 @@ namespace Traysky.Services;
 
 /// <summary>
 /// Persists the refresh token between launches, encrypted with DPAPI for the current Windows
-/// user. Chosen over the Credential Locker because an OAuth session later needs a DPoP key
-/// alongside the token, and a single encrypted blob grows with that more gracefully than
-/// PasswordVault's fixed username/password slots.
+/// user. Chosen over Credential Manager (PasswordVault / CredWrite) because it doesn't fit: an
+/// OAuth session's JSON is ~2.2 KB of UTF-8, almost all of it the DPoP key, and Credential
+/// Manager caps a secret at 2560 bytes. PasswordVault stores the password as UTF-16, which
+/// roughly doubles it past the cap, and raw UTF-8 through CredWrite leaves only ~300 bytes of
+/// headroom, so a long PDS URL or a change in how idunno serializes the key would sign people
+/// out. Credential Manager encrypts with the same per-user DPAPI key anyway, so moving there
+/// wouldn't make it any more secure. See issue #9.
 /// </summary>
 public static class SessionStore
 {
