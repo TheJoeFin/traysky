@@ -4,7 +4,7 @@ param(
     [string]$Configuration = 'Release',
 
     # Root of the Traysky repository to build. Defaults to the folder this script lives in.
-    [string]$RepoRoot = $PSScriptRoot,
+    [string]$RepoRoot,
 
     # Release notes for the GitHub release. When omitted, GitHub generates notes
     # from the commits/PRs since the previous release.
@@ -21,6 +21,27 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# $PSScriptRoot is not reliable in every host (e.g. ISE/VS Code run-selection or
+# dot-sourcing report the caller's folder), so resolve the root explicitly: an
+# explicit -RepoRoot wins, then the script's own folder, then the git repo of the
+# current directory. Only accept a candidate that actually contains the project.
+if (-not $RepoRoot) {
+    $candidates = @(
+        $(if ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path }),
+        $PSScriptRoot,
+        $(& git rev-parse --show-toplevel 2>$null),
+        (Get-Location).ProviderPath
+    ) | Where-Object { $_ }
+
+    $RepoRoot = $candidates |
+        Where-Object { Test-Path -LiteralPath (Join-Path $_ 'Traysky\Traysky.csproj') } |
+        Select-Object -First 1
+
+    if (-not $RepoRoot) {
+        throw "Could not locate the Traysky repository (tried: $($candidates -join ', ')). Pass -RepoRoot or run from inside the repo."
+    }
+}
 
 if (-not (Test-Path -LiteralPath $RepoRoot)) {
     throw "Repository root not found: $RepoRoot"
