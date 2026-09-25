@@ -236,37 +236,7 @@ public sealed partial class ComposeViewModel : ObservableObject
         if (dataPackageView.Contains(StandardDataFormats.StorageItems))
         {
             IReadOnlyList<IStorageItem> items = await dataPackageView.GetStorageItemsAsync();
-            bool attachedAny = false;
-
-            foreach (IStorageItem item in items)
-            {
-                if (item is not StorageFile file)
-                    continue;
-
-                string extension = Path.GetExtension(file.Name);
-                if (ComposeAttachmentPolicy.IsVideoExtension(extension))
-                {
-                    if (!CanAttachVideo)
-                    {
-                        Error = "A post can have images or one video, not both.";
-                        continue;
-                    }
-
-                    await AddVideoAsync(file);
-                    attachedAny = true;
-                }
-                else if (ComposeAttachmentPolicy.IsImageExtension(extension))
-                {
-                    if (!CanAttachImage)
-                    {
-                        Error = $"Up to {ComposeAttachmentPolicy.MaxImages} images per post, or one video.";
-                        continue;
-                    }
-
-                    await AddImageAsync(file);
-                    attachedAny = true;
-                }
-            }
+            bool attachedAny = await AddFilesAsync(items.OfType<StorageFile>());
 
             if (!attachedAny && Error is null && items.Count > 0)
                 Error = "Clipboard doesn't contain a supported image or video.";
@@ -285,6 +255,64 @@ public sealed partial class ComposeViewModel : ObservableObject
             RandomAccessStreamReference streamRef = await dataPackageView.GetBitmapAsync();
             await AddClipboardBitmapAsync(streamRef);
         }
+    }
+
+    /// <summary>
+    /// Takes in something shared to Traysky from another app (see <see cref="ShareTargetService"/>)
+    /// as a fresh post: any reply/quote in progress is dropped, the shared text goes below
+    /// whatever draft was already typed, and the files go through the same rules as picking them.
+    /// </summary>
+    public async Task AcceptShareAsync(StagedShare share)
+    {
+        ReplyTo = null;
+        QuoteOf = null;
+        Text = ShareTargetPolicy.MergeIntoDraft(Text, share.Text);
+        Error = null;
+        IsExpanded = true;
+
+        var files = new List<StorageFile>(share.FilePaths.Count);
+        foreach (string path in share.FilePaths)
+            files.Add(await StorageFile.GetFileFromPathAsync(path));
+
+        await AddFilesAsync(files);
+    }
+
+    /// <summary>
+    /// Attaches files by extension, applying the image/video exclusivity and count rules; a file
+    /// that doesn't fit leaves <see cref="Error"/> set. Returns whether anything was attached.
+    /// </summary>
+    private async Task<bool> AddFilesAsync(IEnumerable<StorageFile> files)
+    {
+        bool attachedAny = false;
+
+        foreach (StorageFile file in files)
+        {
+            string extension = Path.GetExtension(file.Name);
+            if (ComposeAttachmentPolicy.IsVideoExtension(extension))
+            {
+                if (!CanAttachVideo)
+                {
+                    Error = "A post can have images or one video, not both.";
+                    continue;
+                }
+
+                await AddVideoAsync(file);
+                attachedAny = true;
+            }
+            else if (ComposeAttachmentPolicy.IsImageExtension(extension))
+            {
+                if (!CanAttachImage)
+                {
+                    Error = $"Up to {ComposeAttachmentPolicy.MaxImages} images per post, or one video.";
+                    continue;
+                }
+
+                await AddImageAsync(file);
+                attachedAny = true;
+            }
+        }
+
+        return attachedAny;
     }
 
     /// <summary>

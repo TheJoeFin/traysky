@@ -291,6 +291,14 @@ overrun the text (real-world data does this).
   `UploadVideo` + `GetJobStatus` polling for video, alt text on both. Picking is via
   `FileOpenPicker`; pasting an image/file from the clipboard (Ctrl+V) is also done, routed
   through the same attachment pipeline instead of the editor's own paste.
+- Share target (2026-09-24): the manifest's `windows.shareTarget` puts Traysky in the Windows
+  Share sheet for text, web links, bitmaps and the image/video types `ComposeAttachmentPolicy`
+  allows. Windows starts a new process per share, so `ShareTargetService` stages the share
+  (text + copied files) under `TemporaryFolder\Share\<ticks-guid>\`, reports the
+  `ShareOperation` complete, and sets the `Traysky_ShareReceived_Event`. The tray instance
+  then moves each staged share into `ComposeViewModel.AcceptShareAsync` and opens compose. A
+  share starts a new post (reply/quote context is dropped) and goes below any existing draft.
+  The text rules (title vs. link vs. text) are in `ShareTargetPolicy`.
 - Draft survives popup light-dismiss (keep the VM alive, like Traydio keeps `ShellPage` alive).
 
 ### 4.8 Rate limits

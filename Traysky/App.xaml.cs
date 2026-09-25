@@ -4,6 +4,7 @@ using Microsoft.Win32;
 using Microsoft.Windows.AppLifecycle;
 using Microsoft.Windows.AppNotifications;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading;
@@ -11,8 +12,10 @@ using System.Threading.Tasks;
 using Traysky.Controls;
 using Traysky.Models;
 using Traysky.Services;
+using Traysky.ViewModels;
 using Windows.UI.ViewManagement;
 using IProtocolActivatedEventArgs = Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs;
+using IShareTargetActivatedEventArgs = Windows.ApplicationModel.Activation.IShareTargetActivatedEventArgs;
 using Windows.Win32;
 using WinUIEx;
 
@@ -31,6 +34,7 @@ public partial class App : Application
     private NotificationAnnouncer? _announcer;
     private Mutex? _singleInstanceMutex;
     private EventWaitHandle? _trayIconRestoreEvent;
+    private EventWaitHandle? _shareReceivedEvent;
     private DispatcherQueue? _uiDispatcherQueue;
     private DispatcherQueueTimer? _trayWatchdogTimer;
     private readonly UISettings _uiSettings = new();
@@ -94,6 +98,20 @@ public partial class App : Application
                     return;
                 }
 
+                // Something was shared to Traysky: copy it out for the running instance's
+                // compose box, wake that instance, and bow out.
+                if (activation?.Kind == ExtendedActivationKind.ShareTarget)
+                {
+                    if (activation.Data is IShareTargetActivatedEventArgs share)
+                    {
+                        await ShareTargetService.StageAsync(share.ShareOperation);
+                        ShareTargetService.SignalRunningInstance();
+                    }
+
+                    ShutdownAndExit();
+                    return;
+                }
+
                 // Another instance is running: ask it to (re)show its tray icon and bow out.
                 try
                 {
@@ -114,6 +132,9 @@ public partial class App : Application
             // Mutex creation can fail in restricted environments; carry on single-instance-less.
         }
 
+        // Captured before the events below are registered: one may already be signaled.
+        _uiDispatcherQueue = DispatcherQueue.GetForCurrentThread();
+
         try
         {
             _trayIconRestoreEvent = new EventWaitHandle(false, EventResetMode.AutoReset, restoreEventName);
@@ -128,7 +149,21 @@ public partial class App : Application
         {
         }
 
-        _uiDispatcherQueue = DispatcherQueue.GetForCurrentThread();
+        try
+        {
+            _shareReceivedEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShareTargetService.ReceivedEventName);
+            ThreadPool.RegisterWaitForSingleObject(
+                _shareReceivedEvent,
+                (_, _) => _uiDispatcherQueue?.TryEnqueue(() => _ = ReceiveSharesAsync()),
+                null,
+                Timeout.Infinite,
+                executeOnlyOnce: false);
+        }
+        catch (Exception ex)
+        {
+            LogService.Warn("App", $"Could not listen for shares: {ex.Message}");
+        }
+
         LogService.Info("App", "Launched");
 
         // Services that must be born on the UI thread (they capture the dispatcher).
@@ -164,10 +199,24 @@ public partial class App : Application
         if (activation?.Kind == ExtendedActivationKind.AppNotification)
             launchDestination = ToastService.DestinationFromLaunch(activation.Data as AppNotificationActivatedEventArgs);
 
+        // A share that launched the app: read it now so the share sheet isn't left waiting on
+        // the session restore below.
+        IShareTargetActivatedEventArgs? launchShare = activation?.Kind == ExtendedActivationKind.ShareTarget
+            ? activation.Data as IShareTargetActivatedEventArgs
+            : null;
+        if (launchShare is not null)
+            await ShareTargetService.StageAsync(launchShare.ShareOperation);
+
         bool restored = await session.TryRestoreAsync();
         LogService.Info("App", restored ? $"Session restored for @{session.Handle}" : "No saved session");
 
-        if (launchDestination is ShellDestination destination)
+        if (launchShare is not null)
+        {
+            await ReceiveSharesAsync();
+            if (!restored)
+                ShowFlyout(ShellDestination.Current); // signed out: the draft waits behind the login page
+        }
+        else if (launchDestination is ShellDestination destination)
             ShowFlyout(destination);
         else if (!restored)
             ShowFlyout(ShellDestination.Current); // first run / signed out: show the login page
@@ -195,6 +244,51 @@ public partial class App : Application
         // lands back in the app instead of staring at the browser.
         if (BlueskySessionService.Instance.TryCompleteBrowserLogin(protocol.Uri))
             ShowFlyout(ShellDestination.Current);
+    }
+
+    // ---- Share target ----------------------------------------------------------------------
+
+    private bool _receivingShares;
+
+    /// <summary>Moves every staged share into the compose box and opens it. Runs on the UI thread.</summary>
+    private async Task ReceiveSharesAsync()
+    {
+        // The event can fire again while files are still being read in; the loop below picks
+        // up anything that lands meanwhile.
+        if (_receivingShares)
+            return;
+        _receivingShares = true;
+
+        try
+        {
+            IReadOnlyList<StagedShare> shares;
+            while ((shares = ShareTargetService.TakePending()).Count > 0)
+            {
+                // Navigate first: opening compose resets its error line, and a share that
+                // brings too many files needs that message to stay visible.
+                ShowFlyout(ShellDestination.Compose);
+
+                foreach (StagedShare share in shares)
+                {
+                    try
+                    {
+                        await ComposeViewModel.Instance.AcceptShareAsync(share);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.Error("Share", "Could not add shared content to the draft", ex);
+                    }
+                    finally
+                    {
+                        ShareTargetService.Discard(share);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            _receivingShares = false;
+        }
     }
 
     // ---- Tray icon -------------------------------------------------------------------------
@@ -535,6 +629,7 @@ public partial class App : Application
             _singleInstanceMutex?.ReleaseMutex();
             _singleInstanceMutex?.Dispose();
             _trayIconRestoreEvent?.Dispose();
+            _shareReceivedEvent?.Dispose();
         }
         catch (Exception ex)
         {
