@@ -59,7 +59,7 @@ public sealed partial class BlueskySessionService : ObservableObject
         });
 
         _agent.Authenticated += OnAuthenticated;
-        _agent.CredentialsUpdated += OnCredentialsUpdated;
+        _agent.CredentialsUpdatedAsync = CredentialsUpdatedAsync;
         _agent.TokenRefreshFailed += OnTokenRefreshFailed;
         _agent.Unauthenticated += OnUnauthenticated;
     }
@@ -326,9 +326,12 @@ public sealed partial class BlueskySessionService : ObservableObject
 
     // ---- Agent events (thread-pool threads) --------------------------------------------
 
-    private void OnAuthenticated(object? sender, AuthenticatedEventArgs e) => Persist(e.AccessCredentials);
+    private async void OnAuthenticated(object? sender, AuthenticatedEventArgs e) => await Persist(e.AccessCredentials, CancellationToken.None);
 
-    private void OnCredentialsUpdated(object? sender, CredentialsUpdatedEventArgs e) => Persist(e.AccessCredentials);
+    private async Task CredentialsUpdatedAsync(CredentialsUpdatedEventArgs e, CancellationToken cancellationToken)
+    {
+        await Persist(e.AccessCredentials, cancellationToken);
+    }
 
     private void OnTokenRefreshFailed(object? sender, TokenRefreshFailedEventArgs e)
     {
@@ -352,7 +355,7 @@ public sealed partial class BlueskySessionService : ObservableObject
             _dispatcher.TryEnqueue(ApplySignedOut);
     }
 
-    private void Persist(AccessCredentials? credentials)
+    private async Task Persist(AccessCredentials? credentials, CancellationToken cancellationToken)
     {
         if (credentials is null || string.IsNullOrEmpty(credentials.RefreshToken))
             return;
@@ -365,7 +368,7 @@ public sealed partial class BlueskySessionService : ObservableObject
             nonce = dpop.DPoPNonce;
         }
 
-        SessionStore.Save(new PersistedSession
+        await SessionStore.Save(new PersistedSession
         {
             Service = credentials.Service.ToString(),
             Did = credentials.Did?.ToString() ?? _agent.Did?.ToString() ?? string.Empty,
@@ -375,7 +378,7 @@ public sealed partial class BlueskySessionService : ObservableObject
             DPoPProofKey = proofKey,
             DPoPNonce = nonce,
             SavedAtUtc = DateTimeOffset.UtcNow
-        });
+        }, cancellationToken);
     }
 
     private Task OnUiAsync(Action action)
