@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Threading;
 using System.Threading.Tasks;
 using Traysky.Services;
 
@@ -7,8 +8,11 @@ namespace Traysky.ViewModels;
 
 public sealed partial class LoginViewModel : ObservableObject
 {
+    private CancellationTokenSource? _browserSignIn;
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SignInWithBrowserCommand))]
     public partial string Handle { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -24,7 +28,12 @@ public sealed partial class LoginViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SignInWithBrowserCommand))]
     public partial bool IsBusy { get; private set; }
+
+    /// <summary>True while the browser is open on Bluesky's sign-in page and the app waits for the redirect.</summary>
+    [ObservableProperty]
+    public partial bool IsWaitingForBrowser { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasError))]
@@ -33,6 +42,8 @@ public sealed partial class LoginViewModel : ObservableObject
     public bool HasError => !string.IsNullOrEmpty(Error);
 
     private bool CanSignIn() => !IsBusy && !string.IsNullOrWhiteSpace(Handle) && !string.IsNullOrEmpty(AppPassword);
+
+    private bool CanSignInWithBrowser() => !IsBusy && !string.IsNullOrWhiteSpace(Handle);
 
     [RelayCommand(CanExecute = nameof(CanSignIn))]
     private async Task SignInAsync()
@@ -70,6 +81,33 @@ public sealed partial class LoginViewModel : ObservableObject
             IsBusy = false;
         }
     }
+
+    [RelayCommand(CanExecute = nameof(CanSignInWithBrowser))]
+    private async Task SignInWithBrowserAsync()
+    {
+        IsBusy = true;
+        IsWaitingForBrowser = true;
+        Error = null;
+
+        using CancellationTokenSource cts = new();
+        _browserSignIn = cts;
+        try
+        {
+            (LoginOutcome outcome, string? error) = await BlueskySessionService.Instance.LoginWithBrowserAsync(Handle, cts.Token);
+
+            if (outcome == LoginOutcome.Failed)
+                Error = error ?? "Sign in failed.";
+        }
+        finally
+        {
+            _browserSignIn = null;
+            IsWaitingForBrowser = false;
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private void CancelBrowserSignIn() => _browserSignIn?.Cancel();
 
     [RelayCommand]
     private Task OpenAppPasswords() => RichTextBuilder.OpenAsync(BlueskyLinks.AppPasswordsUrl);

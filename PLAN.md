@@ -299,13 +299,35 @@ overrun the text (real-world data does this).
 polling until the reset time. Realistic load (1 unread-count call/min + a timeline fetch per open)
 is far under Bluesky's limits.
 
-### 4.9 OAuth (M6, optional)
+### 4.9 OAuth (issue #1, `oauth` branch)
 
-Bluesky OAuth needs a `client_id` that *is* a URL to a hosted `client-metadata.json` (GitHub Pages
-on the repo works) and a redirect. For a desktop app the loopback redirect via
-`idunno.AtProto.OAuthCallback`'s `CallbackServer` is the documented path; `SessionStore` already
-has fields for `DPoPProofKey` / `DPoPNonce` so switching is additive. Ship with app passwords
-first — it's what the library docs lead with and it works offline-of-any-hosting.
+Browser sign-in sits next to app passwords on the login page; neither replaces the other.
+
+- **Client identity:** `client_id` is `https://thejoefin.github.io/traysky/oauth/client-metadata.json`,
+  served by GitHub Pages from `docs/` on `main` (Pages must be enabled for the repo). Public native
+  client: `application_type: native`, `token_endpoint_auth_method: none`, DPoP-bound tokens,
+  scopes `atproto transition:generic`.
+- **Redirect:** atproto requires a native custom scheme to be the client_id host reversed, so it
+  is `io.github.thejoefin:/traysky/callback`, declared as a `windows.protocol` in the manifest.
+  `OAuthCallbackPolicy` holds all of these constants; `OAuthCallbackPolicyTests` checks that the
+  metadata file and the manifest agree with it. Moving to another host changes the scheme.
+- **Loopback is dev-only:** `http://127.0.0.1` redirects (idunno's `CallbackServer`) are only
+  allowed for the `http://localhost` development client id, so they are not used.
+- **Not WinUIEx `WebAuthenticator`:** it tracks sign-ins by rewriting `state` in the authorize
+  URL, but idunno uses PAR, so the browser URL only carries `client_id` + `request_uri` and the
+  server echoes idunno's own state. Instead the duplicate process that Windows starts for the
+  redirect finds the running instance (`AppInstance` key `main`) and
+  `RedirectActivationToAsync`s to it; `BlueskySessionService.TryCompleteBrowserLogin` matches
+  the `state` and completes the waiting `LoginWithBrowserAsync`, which holds the `OAuthClient`
+  in memory. If Traysky was quit mid-sign-in the redirect is ignored.
+- **Session lifetime:** the spec limits public clients to 2-week sessions, so OAuth users may
+  have to sign in again every two weeks; app-password sessions are not limited that way. Only a
+  confidential client (a backend holding a private key) avoids that.
+- **Restore/refresh/logout:** the agent is always built with `OAuthOptions`, because idunno
+  refuses to refresh or revoke DPoP credentials without a client id. `SessionStore` already
+  persisted the DPoP proof key and nonce.
+- **Trimming:** Duende's OidcClient assemblies are rooted like idunno's until a trimmed Release
+  build has been seen to sign in.
 
 ---
 

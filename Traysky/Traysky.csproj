@@ -85,6 +85,11 @@
     <TrimmerRootAssembly Include="idunno.Bluesky" />
     <TrimmerRootAssembly Include="idunno.AtProto" />
     <TrimmerRootAssembly Include="idunno.AtProto.Types" />
+    <!-- idunno's OAuth client (browser sign-in, DPoP) is Duende's OidcClient underneath; root it
+         for the same reason until a trimmed Release build has been proven to sign in. -->
+    <TrimmerRootAssembly Include="Duende.IdentityModel" />
+    <TrimmerRootAssembly Include="Duende.IdentityModel.OidcClient" />
+    <TrimmerRootAssembly Include="Duende.IdentityModel.OidcClient.Extensions" />
   </ItemGroup>
 
   <!--
