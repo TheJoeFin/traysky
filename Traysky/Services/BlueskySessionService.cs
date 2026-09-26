@@ -61,7 +61,7 @@ public sealed partial class BlueskySessionService : ObservableObject
 
         string version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
 
-        _agent = new BlueskyAgent(new BlueskyAgentOptions
+        _agent = new TrayskyAgent(new BlueskyAgentOptions
         {
             HttpClientOptions = new HttpClientOptions
             {
@@ -488,8 +488,10 @@ public sealed partial class BlueskySessionService : ObservableObject
         }
     }
 
-    // The token is ignored on purpose; see SessionStore.Save.
-    private Task CredentialsUpdatedAsync(CredentialsUpdatedEventArgs e, CancellationToken cancellationToken) => Persist(e.AccessCredentials);
+    // The token is ignored on purpose; see SessionStore.Save. Saves what the agent holds now
+    // rather than the event's copy: a nonce update raised just before a refresh published new
+    // tokens would otherwise be saved after them and put the spent refresh token on disk.
+    private Task CredentialsUpdatedAsync(CredentialsUpdatedEventArgs e, CancellationToken cancellationToken) => Persist(_agent.Credentials);
 
     private void OnTokenRefreshFailed(object? sender, TokenRefreshFailedEventArgs e)
     {
