@@ -23,8 +23,8 @@ on the tray plumbing of [Traydio](https://github.com/TheJoeFin/Traydio).
 - 🔔 Notifications grouped like the official app ("A, B and 3 others liked your post")
 - ✍️ Compose, reply and quote from the flyout — Ctrl+Enter to post, 300-grapheme counter
 - ❤️ Like and repost with instant feedback
-- 🔐 Sign in with an [app password](https://bsky.app/settings/app-passwords); the refresh token is
-  stored DPAPI-encrypted, never your password
+- 🔐 Sign in through your browser (OAuth), or with an [app password](https://bsky.app/settings/app-passwords);
+  the refresh token is stored DPAPI-encrypted, never your password
 - ⚙️ Configurable tray clicks, poll interval, toast types, start with Windows
 - ⌨️ Ctrl+1 / Ctrl+2 tabs, Ctrl+N compose, Ctrl+R refresh, Esc to hide
 

@@ -38,26 +38,9 @@
                 Header="Handle"
                 IsEnabled="{x:Bind IsNotBusy(ViewModel.IsBusy), Mode=OneWay}"
                 IsSpellCheckEnabled="False"
-                KeyDown="Field_KeyDown"
+                KeyDown="HandleBox_KeyDown"
                 PlaceholderText="alice.bsky.social"
                 Text="{x:Bind ViewModel.Handle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-
-            <PasswordBox
-                x:Name="PasswordBox"
-                Header="App password"
-                IsEnabled="{x:Bind IsNotBusy(ViewModel.IsBusy), Mode=OneWay}"
-                KeyDown="Field_KeyDown"
-                Password="{x:Bind ViewModel.AppPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                PlaceholderText="xxxx-xxxx-xxxx-xxxx" />
-
-            <TextBox
-                x:Name="AuthCodeBox"
-                Header="Email sign-in code"
-                IsEnabled="{x:Bind IsNotBusy(ViewModel.IsBusy), Mode=OneWay}"
-                KeyDown="Field_KeyDown"
-                PlaceholderText="XXXXX-XXXXX"
-                Text="{x:Bind ViewModel.AuthCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                Visibility="{x:Bind ViewModel.NeedsAuthCode, Mode=OneWay}" />
 
             <InfoBar
                 IsClosable="False"
@@ -67,23 +50,22 @@
 
             <Button
                 HorizontalAlignment="Stretch"
-                Command="{x:Bind ViewModel.SignInCommand}"
+                Command="{x:Bind ViewModel.SignInWithBrowserCommand}"
                 Style="{StaticResource AccentButtonStyle}">
                 <Grid>
-                    <TextBlock Text="Sign in" Visibility="{x:Bind HiddenWhenBusy(ViewModel.IsBusy), Mode=OneWay}" />
+                    <TextBlock Text="Sign in with your browser" Visibility="{x:Bind HiddenWhenBusy(ViewModel.IsWaitingForBrowser), Mode=OneWay}" />
                     <ProgressRing
                         Width="18"
                         Height="18"
-                        IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
-                        Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+                        IsActive="{x:Bind ViewModel.IsWaitingForBrowser, Mode=OneWay}"
+                        Visibility="{x:Bind ViewModel.IsWaitingForBrowser, Mode=OneWay}" />
                 </Grid>
             </Button>
 
-            <Button
-                HorizontalAlignment="Stretch"
-                Command="{x:Bind ViewModel.SignInWithBrowserCommand}"
-                Content="Sign in with your browser instead"
-                ToolTipService.ToolTip="Approve Traysky on your Bluesky server's own sign-in page. No app password needed." />
+            <TextBlock
+                Style="{StaticResource SecondaryTextStyle}"
+                Text="You'll approve Traysky on your Bluesky server's own sign-in page. Traysky never sees your password."
+                TextWrapping="Wrap" />
 
             <StackPanel
                 Padding="12"
@@ -102,16 +84,53 @@
                     Content="Cancel" />
             </StackPanel>
 
-            <StackPanel Spacing="4">
-                <TextBlock
-                    Style="{StaticResource SecondaryTextStyle}"
-                    Text="Use an app password, not your account password. App passwords can be revoked any time and skip two-factor prompts."
-                    TextWrapping="Wrap" />
-                <HyperlinkButton
-                    Padding="0"
-                    Command="{x:Bind ViewModel.OpenAppPasswordsCommand}"
-                    Content="Create an app password on bsky.app" />
-            </StackPanel>
+            <Expander
+                Margin="0,8,0,0"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Stretch"
+                Header="Use an app password instead"
+                IsEnabled="{x:Bind IsNotBusy(ViewModel.IsWaitingForBrowser), Mode=OneWay}">
+                <StackPanel Spacing="12">
+                    <PasswordBox
+                        x:Name="PasswordBox"
+                        Header="App password"
+                        IsEnabled="{x:Bind IsNotBusy(ViewModel.IsBusy), Mode=OneWay}"
+                        KeyDown="PasswordField_KeyDown"
+                        Password="{x:Bind ViewModel.AppPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        PlaceholderText="xxxx-xxxx-xxxx-xxxx" />
+
+                    <TextBox
+                        x:Name="AuthCodeBox"
+                        Header="Email sign-in code"
+                        IsEnabled="{x:Bind IsNotBusy(ViewModel.IsBusy), Mode=OneWay}"
+                        KeyDown="PasswordField_KeyDown"
+                        PlaceholderText="XXXXX-XXXXX"
+                        Text="{x:Bind ViewModel.AuthCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        Visibility="{x:Bind ViewModel.NeedsAuthCode, Mode=OneWay}" />
+
+                    <Button HorizontalAlignment="Stretch" Command="{x:Bind ViewModel.SignInCommand}">
+                        <Grid>
+                            <TextBlock Text="Sign in with app password" Visibility="{x:Bind HiddenWhenBusy(ViewModel.IsBusy), Mode=OneWay}" />
+                            <ProgressRing
+                                Width="18"
+                                Height="18"
+                                IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
+                                Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+                        </Grid>
+                    </Button>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            Style="{StaticResource SecondaryTextStyle}"
+                            Text="Use an app password, not your account password. App passwords can be revoked any time and skip two-factor prompts."
+                            TextWrapping="Wrap" />
+                        <HyperlinkButton
+                            Padding="0"
+                            Command="{x:Bind ViewModel.OpenAppPasswordsCommand}"
+                            Content="Create an app password on bsky.app" />
+                    </StackPanel>
+                </StackPanel>
+            </Expander>
         </StackPanel>
     </ScrollViewer>
 </Page>

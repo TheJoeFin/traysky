@@ -309,7 +309,9 @@ is far under Bluesky's limits.
 
 ### 4.9 OAuth (issue #1, `oauth` branch)
 
-Browser sign-in sits next to app passwords on the login page; neither replaces the other.
+Browser sign-in is the primary (accent) path on the login page; app passwords stay available in a
+collapsed "Use an app password instead" expander. Enter in the handle box starts browser sign-in
+unless an app password has been typed.
 
 - **Client identity:** `client_id` is `https://thejoefin.github.io/traysky/oauth/client-metadata.json`,
   served by GitHub Pages from `docs/` on `main` (Pages must be enabled for the repo). Public native
