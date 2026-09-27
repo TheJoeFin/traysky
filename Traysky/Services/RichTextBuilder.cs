@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
 using Windows.System;
@@ -20,7 +21,11 @@ public static class RichTextBuilder
     /// </summary>
     public static bool WasLinkClickedRecently() =>
         Environment.TickCount64 - System.Threading.Volatile.Read(ref _lastLinkClickTicks) < 500;
-    public static void Populate(RichTextBlock target, IReadOnlyList<TextSegment> segments)
+    /// <summary>
+    /// <paramref name="linkForeground"/> overrides the accent-coloured links, for text drawn on
+    /// an accent background (your own chat messages); such links are underlined instead.
+    /// </summary>
+    public static void Populate(RichTextBlock target, IReadOnlyList<TextSegment> segments, Brush? linkForeground = null)
     {
         target.Blocks.Clear();
 
@@ -35,8 +40,10 @@ public static class RichTextBuilder
 
             Hyperlink link = new()
             {
-                UnderlineStyle = UnderlineStyle.None
+                UnderlineStyle = linkForeground is null ? UnderlineStyle.None : UnderlineStyle.Single
             };
+            if (linkForeground is not null)
+                link.Foreground = linkForeground;
             link.Inlines.Add(new Run { Text = segment.Text });
 
             if (segment.Kind == FacetKind.Mention)

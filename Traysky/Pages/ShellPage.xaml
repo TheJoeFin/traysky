@@ -50,6 +50,26 @@
                             Visibility="{x:Bind ViewModel.HasUnread, Mode=OneWay}"
                             Value="{x:Bind ViewModel.UnreadCount, Mode=OneWay}" />
                     </Grid>
+                    <!--  Direct messages: only once ChatService has confirmed this session was granted DM access.  -->
+                    <Grid Visibility="{x:Bind ViewModel.ShowMessages, Mode=OneWay}">
+                        <Button
+                            x:Name="MessagesButton"
+                            Click="MessagesButton_Click"
+                            Style="{StaticResource TitleBarButtonStyle}"
+                            ToolTipService.ToolTip="Messages (Ctrl+3)">
+                            <FontIcon FontSize="14" Glyph="&#xE8BD;" />
+                        </Button>
+                        <InfoBadge
+                            MinWidth="14"
+                            MinHeight="14"
+                            Margin="0,-2,-2,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            IsHitTestVisible="False"
+                            Style="{StaticResource AttentionValueInfoBadgeStyle}"
+                            Visibility="{x:Bind ViewModel.HasUnreadMessages, Mode=OneWay}"
+                            Value="{x:Bind ViewModel.UnreadMessageCount, Mode=OneWay}" />
+                    </Grid>
                     <!--  Your profile while signed in (Settings is a button on it), straight to Settings while signed out.  -->
                     <Button
                         x:Name="AccountButton"

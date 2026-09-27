@@ -173,6 +173,72 @@ public static class PreviewMode
         }
     ];
 
+    /// <summary>The preview account's DID, so its sample messages line up on the "mine" side.</summary>
+    public const string SelfDid = "did:plc:preview-self";
+
+    /// <summary>A few conversations for the Messages page: one unread, one request, one quiet.</summary>
+    public static List<ConversationItem> SampleConversations()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        return
+        [
+            new ConversationItem
+            {
+                Id = "preview-convo-1", Title = "Joe Finney", Subtitle = "@joe.bsky.social", OtherProfileKey = "joe.bsky.social",
+                LastMessagePreview = "Does the tray icon badge work for you?", LastMessageAt = now.AddMinutes(-3), UnreadCount = 2
+            },
+            new ConversationItem
+            {
+                Id = "preview-convo-2", Title = "Photo Person", Subtitle = "@photos.bsky.social", OtherProfileKey = "photos.bsky.social",
+                LastMessagePreview = "Hi! Loved your latest post about WinUI.", LastMessageAt = now.AddHours(-2), UnreadCount = 1, IsRequest = true
+            },
+            new ConversationItem
+            {
+                Id = "preview-convo-3", Title = "Barry Dorrans", Subtitle = "@blowdart.bsky.social", OtherProfileKey = "blowdart.bsky.social",
+                LastMessagePreview = "You: Thanks, will do", LastMessageAt = now.AddDays(-3)
+            }
+        ];
+    }
+
+    public static List<MessageItem> SampleMessages(ConversationItem conversation)
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        string them = "did:plc:" + conversation.Id;
+
+        MessageItem Msg(int n, bool mine, string text, DateTimeOffset at, string reactions = "") => new()
+        {
+            Id = $"{conversation.Id}-{n}",
+            SenderDid = mine ? SelfDid : them,
+            SenderName = mine ? "Preview Account" : conversation.Title,
+            IsMine = mine,
+            Text = text,
+            Segments = FacetSegmenter.Segment(text, null),
+            ReactionsText = reactions,
+            SentAt = at
+        };
+
+        return conversation.Id switch
+        {
+            "preview-convo-1" =>
+            [
+                Msg(1, true, "Pushed a build with DMs in it 🦋", now.AddHours(-26)),
+                Msg(2, false, "Nice, grabbing it now", now.AddMinutes(-20), "👍"),
+                Msg(3, false, "Messages open from the title bar?", now.AddMinutes(-19)),
+                Msg(4, true, "Yep, next to the bell. Only shows if your app password has DM access.", now.AddMinutes(-10)),
+                Msg(5, false, "Does the tray icon badge work for you?", now.AddMinutes(-3)),
+            ],
+            "preview-convo-2" =>
+            [
+                Msg(1, false, "Hi! Loved your latest post about WinUI.", now.AddHours(-2)),
+            ],
+            _ =>
+            [
+                Msg(1, false, "Can you file that as an issue so I don't forget?", now.AddDays(-3).AddMinutes(-5)),
+                Msg(2, true, "Thanks, will do", now.AddDays(-3), "❤️"),
+            ]
+        };
+    }
+
     private static long Utf8Index(string text, string needle) =>
         System.Text.Encoding.UTF8.GetByteCount(text.AsSpan(0, text.IndexOf(needle, StringComparison.Ordinal)));
 }

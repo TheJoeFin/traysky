@@ -15,5 +15,8 @@ public enum ShellDestination
 
     /// <summary>The standalone compose page, for a fresh post.</summary>
     Compose,
-    Settings
+    Settings,
+
+    /// <summary>The direct message conversations, when the session has DM access.</summary>
+    Messages
 }

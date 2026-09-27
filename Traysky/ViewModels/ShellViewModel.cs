@@ -18,6 +18,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private readonly BlueskySessionService _session = BlueskySessionService.Instance;
     private readonly NotificationPollService _poll = NotificationPollService.Instance;
     private readonly FeedsService _feeds = FeedsService.Instance;
+    private readonly ChatService _chat = ChatService.Instance;
 
     public ShellViewModel()
     {
@@ -32,6 +33,7 @@ public sealed partial class ShellViewModel : ObservableObject
         _navigation.NavigationChanged += (_, _) => OnPropertyChanged(nameof(ShowTabs));
         _session.PropertyChanged += OnSessionChanged;
         _poll.PropertyChanged += OnPollChanged;
+        _chat.PropertyChanged += OnChatChanged;
     }
 
     public bool CanGoBack => _navigation.CanGoBack;
@@ -48,6 +50,13 @@ public sealed partial class ShellViewModel : ObservableObject
 
     public bool HasUnread => _poll.UnreadCount > 0;
 
+    /// <summary>The Messages button only appears once a chat call has worked for this session.</summary>
+    public bool ShowMessages => _session.IsSignedIn && _chat.CanUseChat;
+
+    public int UnreadMessageCount => _chat.UnreadCount;
+
+    public bool HasUnreadMessages => _chat.HasUnread;
+
     private static bool IsRootPage(Type? pageType) => pageType == typeof(TimelinePage);
 
     private void OnSessionChanged(object? sender, PropertyChangedEventArgs e)
@@ -56,6 +65,18 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(IsSignedIn));
             OnPropertyChanged(nameof(ShowTabs));
+            OnPropertyChanged(nameof(ShowMessages));
+        }
+    }
+
+    private void OnChatChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ChatService.CanUseChat))
+            OnPropertyChanged(nameof(ShowMessages));
+        else if (e.PropertyName == nameof(ChatService.UnreadCount))
+        {
+            OnPropertyChanged(nameof(UnreadMessageCount));
+            OnPropertyChanged(nameof(HasUnreadMessages));
         }
     }
 

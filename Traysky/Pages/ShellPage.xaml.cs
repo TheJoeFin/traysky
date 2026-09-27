@@ -16,7 +16,7 @@ using Windows.System;
 namespace Traysky.Pages;
 
 /// <summary>
-/// The flyout's chrome: title bar (with the notifications, profile-and-settings and quit buttons),
+/// The flyout's chrome: title bar (with the notifications, messages, profile-and-settings and quit buttons),
 /// the account's feed tab row, and the frame the pages live in. One instance lives for the
 /// app's life inside <see cref="Controls.TrayPopupWindow"/>.
 /// </summary>
@@ -53,6 +53,7 @@ public sealed partial class ShellPage : Page
         KeyboardAccelerators.Add(Accelerator(VirtualKey.R, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; Refresh(); }));
         KeyboardAccelerators.Add(Accelerator(VirtualKey.Number1, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Home); }));
         KeyboardAccelerators.Add(Accelerator(VirtualKey.Number2, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Notifications); }));
+        KeyboardAccelerators.Add(Accelerator(VirtualKey.Number3, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Messages); }));
         KeyboardAccelerators.Add(Accelerator(VirtualKey.N, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Compose); }));
 
         // ListViewItem marks PointerPressed handled, so a plain XAML hookup never fires.
@@ -167,6 +168,10 @@ public sealed partial class ShellPage : Page
         await FeedsService.Instance.LoadIfNeededAsync();
         NavigateTo(ShellDestination.Home);
 
+        // Same reason as the feeds above: a restored session signed in before this page could
+        // hear it. Also keeps the Messages badge fresh on every reopen.
+        _ = ChatService.Instance.CheckAsync();
+
         // NavigateTo(Home) is a no-op when the frame is already on TimelinePage - the common
         // case, since the popup is almost always hidden while showing Home - so
         // TimelinePage.OnNavigatedTo never fires to run its stale check. Run it here too so
@@ -199,6 +204,12 @@ public sealed partial class ShellPage : Page
                 // Pushed, not reset: notifications is a page you visit and back out of, like
                 // Settings, not a feed tab - so it gets a back button and hides the feed row.
                 _navigation.Navigate(typeof(NotificationsPage));
+                break;
+
+            case ShellDestination.Messages:
+                // Pushed like Notifications. Without DM access there is nothing to show.
+                if (ChatService.Instance.CanUseChat)
+                    _navigation.Navigate(typeof(MessagesPage));
                 break;
 
             case ShellDestination.Compose:
@@ -282,10 +293,13 @@ public sealed partial class ShellPage : Page
         await BlueskySessionService.Instance.EnsureAuthenticatedAsync();
 
         _ = NotificationPollService.Instance.PollNowAsync();
+        _ = ChatService.Instance.CheckAsync(force: true);
 
         _ = (_navigation.Frame?.Content) switch
         {
             NotificationsPage => NotificationsViewModel.Instance.RefreshAsync(),
+            MessagesPage => MessagesViewModel.Instance.RefreshAsync(),
+            ConversationPage conversation => conversation.ViewModel.PollAsync(),
             _ => TimelineViewModel.Instance.RefreshAsync(),
         };
     }
@@ -293,6 +307,8 @@ public sealed partial class ShellPage : Page
     private void NewPostButton_Click(object sender, RoutedEventArgs e) => NavigateTo(ShellDestination.Compose);
 
     private void NotificationsButton_Click(object sender, RoutedEventArgs e) => NavigateTo(ShellDestination.Notifications);
+
+    private void MessagesButton_Click(object sender, RoutedEventArgs e) => NavigateTo(ShellDestination.Messages);
 
     /// <summary>
     /// Opens your own profile, which carries the Settings button. Signed out there is no

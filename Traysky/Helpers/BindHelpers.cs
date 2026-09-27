@@ -27,6 +27,9 @@ public static class BindHelpers
 
     public static bool Not(bool value) => !value;
 
+    /// <summary>InfoBadge.Value is an int; chat unread counts are longs.</summary>
+    public static int BadgeValue(long count) => (int)Math.Min(count, 99);
+
     /// <summary>The post a thread page is about gets a faint highlight so it stands out from ancestors and replies.</summary>
     public static Brush MainPostBackground(bool isMain) => isMain
         ? BrushFromKey("LayerFillColorAltBrush")
