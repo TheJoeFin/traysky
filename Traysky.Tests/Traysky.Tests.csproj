@@ -39,6 +39,8 @@
     <Compile Include="..\Traysky\Services\OAuthCallbackPolicy.cs" Link="Services\OAuthCallbackPolicy.cs" />
     <Compile Include="..\Traysky\Services\ShareTargetPolicy.cs" Link="Services\ShareTargetPolicy.cs" />
     <Compile Include="..\Traysky\Services\ExternalMediaPolicy.cs" Link="Services\ExternalMediaPolicy.cs" />
+    <Compile Include="..\Traysky\Services\ChatAccessPolicy.cs" Link="Services\ChatAccessPolicy.cs" />
+    <Compile Include="..\Traysky\Services\ChatThreadPolicy.cs" Link="Services\ChatThreadPolicy.cs" />
   </ItemGroup>
 
 </Project>
