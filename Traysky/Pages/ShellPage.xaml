@@ -51,14 +51,6 @@
                             Value="{x:Bind ViewModel.UnreadCount, Mode=OneWay}" />
                     </Grid>
                     <Button
-                        x:Name="RefreshButton"
-                        Click="RefreshButton_Click"
-                        Style="{StaticResource TitleBarButtonStyle}"
-                        ToolTipService.ToolTip="Refresh (Ctrl+R)"
-                        Visibility="{x:Bind ViewModel.IsSignedIn, Mode=OneWay}">
-                        <FontIcon FontSize="14" Glyph="&#xE72C;" />
-                    </Button>
-                    <Button
                         x:Name="ProfileButton"
                         Click="ProfileButton_Click"
                         Style="{StaticResource TitleBarButtonStyle}"
@@ -99,7 +91,6 @@
             IsItemClickEnabled="True"
             ItemClick="Tabs_ItemClick"
             ItemsSource="{x:Bind ViewModel.Feeds, Mode=OneWay}"
-            PointerPressed="Tabs_PointerPressed"
             ScrollViewer.HorizontalScrollBarVisibility="Auto"
             ScrollViewer.HorizontalScrollMode="Enabled"
             ScrollViewer.VerticalScrollBarVisibility="Disabled"

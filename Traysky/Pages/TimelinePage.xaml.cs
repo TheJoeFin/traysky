@@ -66,6 +66,13 @@ public sealed partial class TimelinePage : Page
         PostPage.Open(post);
     }
 
+    private async void RefreshContainer_RefreshRequested(RefreshContainer sender, RefreshRequestedEventArgs args)
+    {
+        // Holding the deferral keeps the spinner up until the fetch lands.
+        using Windows.Foundation.Deferral deferral = args.GetDeferral();
+        await ViewModel.RefreshAsync();
+    }
+
     /// <summary>Jumps back to the newest post. Used when the shell's feed row re-clicks the
     /// already-selected tab, alongside a refresh.</summary>
     public void ScrollToTop() => _scrollViewer?.ChangeView(null, 0, null, disableAnimation: true);

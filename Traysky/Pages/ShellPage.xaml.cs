@@ -16,7 +16,7 @@ using Windows.System;
 namespace Traysky.Pages;
 
 /// <summary>
-/// The flyout's chrome: title bar (with the notifications, refresh, profile, settings and quit buttons),
+/// The flyout's chrome: title bar (with the notifications, profile, settings and quit buttons),
 /// the account's feed tab row, and the frame the pages live in. One instance lives for the
 /// app's life inside <see cref="Controls.TrayPopupWindow"/>.
 /// </summary>
@@ -54,6 +54,9 @@ public sealed partial class ShellPage : Page
         KeyboardAccelerators.Add(Accelerator(VirtualKey.Number1, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Home); }));
         KeyboardAccelerators.Add(Accelerator(VirtualKey.Number2, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Notifications); }));
         KeyboardAccelerators.Add(Accelerator(VirtualKey.N, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Compose); }));
+
+        // ListViewItem marks PointerPressed handled, so a plain XAML hookup never fires.
+        Tabs.AddHandler(PointerPressedEvent, new PointerEventHandler(Tabs_PointerPressed), handledEventsToo: true);
 
         ActualThemeChanged += (_, _) => UpdateTitleBarIcon();
     }
@@ -268,8 +271,6 @@ public sealed partial class ShellPage : Page
     {
         _navigation.GoBack();
     }
-
-    private void RefreshButton_Click(object sender, RoutedEventArgs e) => Refresh();
 
     private async void Refresh()
     {

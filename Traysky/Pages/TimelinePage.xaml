@@ -11,39 +11,42 @@
     mc:Ignorable="d">
 
     <Grid>
-        <ListView
-            x:Name="PostList"
-            IsItemClickEnabled="False"
-            ItemsSource="{x:Bind ViewModel.Posts}"
-            SelectionMode="None">
-            <ListView.ItemContainerStyle>
-                <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
-                    <Setter Property="Padding" Value="0" />
-                    <Setter Property="Margin" Value="0" />
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                    <Setter Property="MinHeight" Value="0" />
-                </Style>
-            </ListView.ItemContainerStyle>
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="items:PostItem">
-                    <Grid>
-                        <controls:PostCard Post="{x:Bind}" ThreadRequested="PostCard_ThreadRequested" />
-                        <Rectangle
-                            Height="1"
-                            VerticalAlignment="Bottom"
-                            Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+        <!--  Pull to refresh. RefreshContainer's pull gesture is touch/pen only; mouse users have the tab re-click.  -->
+        <RefreshContainer RefreshRequested="RefreshContainer_RefreshRequested">
+            <ListView
+                x:Name="PostList"
+                IsItemClickEnabled="False"
+                ItemsSource="{x:Bind ViewModel.Posts}"
+                SelectionMode="None">
+                <ListView.ItemContainerStyle>
+                    <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="Margin" Value="0" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="MinHeight" Value="0" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="items:PostItem">
+                        <Grid>
+                            <controls:PostCard Post="{x:Bind}" ThreadRequested="PostCard_ThreadRequested" />
+                            <Rectangle
+                                Height="1"
+                                VerticalAlignment="Bottom"
+                                Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+                <ListView.Footer>
+                    <Grid Height="40">
+                        <ProgressRing
+                            Width="20"
+                            Height="20"
+                            IsActive="{x:Bind ViewModel.IsLoadingMore, Mode=OneWay}" />
                     </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-            <ListView.Footer>
-                <Grid Height="40">
-                    <ProgressRing
-                        Width="20"
-                        Height="20"
-                        IsActive="{x:Bind ViewModel.IsLoadingMore, Mode=OneWay}" />
-                </Grid>
-            </ListView.Footer>
-        </ListView>
+                </ListView.Footer>
+            </ListView>
+        </RefreshContainer>
 
         <!--  First load  -->
         <ProgressRing
