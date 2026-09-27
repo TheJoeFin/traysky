@@ -62,12 +62,21 @@ public sealed partial class EmbedImageView : UserControl
     {
         var view = (EmbedImageView)d;
 
+        // Setting UriSource to the URI it already has doesn't reload, so ImageOpened never fires
+        // to fade the picture back in. Leave it as is; the size may still need updating.
+        Uri? thumbnail = (e.NewValue as EmbedImage)?.Thumbnail;
+        if (thumbnail is not null && thumbnail == view.Bitmap.UriSource)
+        {
+            view.InvalidateMeasure();
+            return;
+        }
+
         // ItemsRepeater recycles these, so a new item starts from the placeholder again rather
         // than briefly showing the previous post's picture.
         ((Storyboard)view.Resources["FadeIn"]).Stop();
         view.Picture.Opacity = 0;
         view.Placeholder.Opacity = 1;
-        view.Bitmap.UriSource = (e.NewValue as EmbedImage)?.Thumbnail;
+        view.Bitmap.UriSource = thumbnail;
         view.InvalidateMeasure();
     }
 
