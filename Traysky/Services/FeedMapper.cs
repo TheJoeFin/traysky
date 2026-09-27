@@ -158,6 +158,11 @@ public static class FeedMapper
 
             case EmbeddedExternalView external when external.External is not null:
                 {
+                    // A link straight to a GIF or picture (bsky.app's GIF picker posts these) is
+                    // shown as the image itself, not as a card about it.
+                    if (ToExternalImage(external) is EmbedImage gif)
+                        return new EmbedItem { Kind = EmbedKind.Images, Images = [gif] };
+
                     // A link that isn't http(s) still shows its card, just without anything to open.
                     BlueskyLinks.TryParseWebUri(external.External.Uri, out Uri? uri);
                     string? host = uri is null ? null
@@ -229,8 +234,7 @@ public static class FeedMapper
                     string? webUrl = BlueskyLinks.PostUrl(atUri, handle);
 
                     IReadOnlyList<EmbedImage> nestedImages = viewRecord.Embeds?
-                        .OfType<EmbeddedImagesView>()
-                        .SelectMany(i => ToImages(i.Images))
+                        .SelectMany(ToQuotedImages)
                         .ToList() ?? [];
 
                     return new EmbedItem
@@ -270,6 +274,23 @@ public static class FeedMapper
             list.Add(new EmbedImage(image.ThumbnailUri, image.FullSizeUri ?? image.ThumbnailUri, image.AltText ?? string.Empty, AspectOf(image.AspectRatio)));
         }
         return list;
+    }
+
+    /// <summary>The pictures inside a quoted post: its images, or a GIF it linked.</summary>
+    private static IReadOnlyList<EmbedImage> ToQuotedImages(EmbeddedView embed) => embed switch
+    {
+        EmbeddedImagesView images => ToImages(images.Images),
+        EmbeddedExternalView external when ToExternalImage(external) is EmbedImage gif => [gif],
+        _ => []
+    };
+
+    private static EmbedImage? ToExternalImage(EmbeddedExternalView external)
+    {
+        if (external.External is null
+            || !ExternalMediaPolicy.TryGetMedia(external.External.Uri, external.External.Title, external.External.Description, out ExternalMedia? media))
+            return null;
+
+        return new EmbedImage(media.Uri, media.Uri, media.AltText, media.AspectRatio ?? 16.0 / 9.0);
     }
 
     private static double AspectOf(AspectRatio? ratio)

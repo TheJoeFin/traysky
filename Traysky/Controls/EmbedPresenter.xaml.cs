@@ -56,8 +56,8 @@ public sealed partial class EmbedPresenter : UserControl
             return;
         }
 
-        if (sender is Image { Tag: Uri full })
-            ImageViewerService.Show(full);
+        if (sender is EmbedImageView { Item: { } image })
+            ImageViewerService.Show(image.FullSize);
         else
             _ = RichTextBuilder.OpenAsync(FallbackUrl);
     }

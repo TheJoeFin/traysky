@@ -38,6 +38,7 @@
     <Compile Include="..\Traysky\Services\HashtagSuggestionPolicy.cs" Link="Services\HashtagSuggestionPolicy.cs" />
     <Compile Include="..\Traysky\Services\OAuthCallbackPolicy.cs" Link="Services\OAuthCallbackPolicy.cs" />
     <Compile Include="..\Traysky\Services\ShareTargetPolicy.cs" Link="Services\ShareTargetPolicy.cs" />
+    <Compile Include="..\Traysky\Services\ExternalMediaPolicy.cs" Link="Services\ExternalMediaPolicy.cs" />
   </ItemGroup>
 
 </Project>

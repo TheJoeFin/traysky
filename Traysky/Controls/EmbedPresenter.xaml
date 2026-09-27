@@ -6,25 +6,17 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="using:Traysky.Helpers"
     xmlns:items="using:Traysky.ViewModels.Items"
+    xmlns:local="using:Traysky.Controls"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
     <UserControl.Resources>
         <DataTemplate x:Key="ImageTemplate" x:DataType="items:EmbedImage">
-            <Border
-                Background="{ThemeResource ControlFillColorSecondaryBrush}"
-                CornerRadius="{StaticResource EmbedCornerRadius}"
-                ToolTipService.ToolTip="{x:Bind AltText}">
-                <Image
-                    MaxHeight="220"
-                    Stretch="Uniform"
-                    Tapped="Image_Tapped"
-                    Tag="{x:Bind FullSize}">
-                    <Image.Source>
-                        <BitmapImage DecodePixelWidth="640" UriSource="{x:Bind Thumbnail}" />
-                    </Image.Source>
-                </Image>
-            </Border>
+            <local:EmbedImageView
+                MaxHeight="220"
+                Item="{x:Bind}"
+                Tapped="Image_Tapped"
+                ToolTipService.ToolTip="{x:Bind AltText}" />
         </DataTemplate>
     </UserControl.Resources>
 
