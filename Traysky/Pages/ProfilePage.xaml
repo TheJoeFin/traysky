@@ -55,15 +55,25 @@
                                 DisplayName="{x:Bind ViewModel.DisplayName, Mode=OneWay}"
                                 ProfilePicture="{x:Bind helpers:BindHelpers.ImageFromUri(ViewModel.AvatarUri), Mode=OneWay}" />
                         </Border>
-                        <Button
+                        <StackPanel
                             Grid.Column="2"
                             Margin="0,40,0,0"
                             VerticalAlignment="Bottom"
-                            Command="{x:Bind ViewModel.ToggleFollowCommand}"
-                            Content="{x:Bind ViewModel.FollowLabel, Mode=OneWay}"
-                            IsEnabled="{x:Bind ViewModel.CanFollow, Mode=OneWay}"
-                            Style="{x:Bind FollowButtonStyle(ViewModel.IsFollowing), Mode=OneWay}"
-                            Visibility="{x:Bind helpers:BindHelpers.CollapsedIf(ViewModel.IsSelf), Mode=OneWay}" />
+                            Orientation="Horizontal"
+                            Spacing="6"
+                            Visibility="{x:Bind helpers:BindHelpers.CollapsedIf(ViewModel.IsSelf), Mode=OneWay}">
+                            <Button
+                                Command="{x:Bind ViewModel.MessageCommand}"
+                                ToolTipService.ToolTip="Message"
+                                Visibility="{x:Bind ViewModel.CanMessage, Mode=OneWay}">
+                                <FontIcon FontSize="14" Glyph="&#xE8BD;" />
+                            </Button>
+                            <Button
+                                Command="{x:Bind ViewModel.ToggleFollowCommand}"
+                                Content="{x:Bind ViewModel.FollowLabel, Mode=OneWay}"
+                                IsEnabled="{x:Bind ViewModel.CanFollow, Mode=OneWay}"
+                                Style="{x:Bind FollowButtonStyle(ViewModel.IsFollowing), Mode=OneWay}" />
+                        </StackPanel>
                         <!--  Your own profile is where Settings lives (the title bar's account button lands here).  -->
                         <Button
                             Grid.Column="2"

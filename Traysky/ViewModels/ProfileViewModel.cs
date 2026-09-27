@@ -4,9 +4,11 @@ using idunno.AtProto;
 using idunno.AtProto.Repo;
 using idunno.Bluesky;
 using idunno.Bluesky.Actor;
+using idunno.Bluesky.Chat;
 using idunno.Bluesky.Feed;
 using System;
 using System.Collections.ObjectModel;
+using Traysky.Pages;
 using System.Threading;
 using System.Threading.Tasks;
 using Traysky.Services;
@@ -86,6 +88,15 @@ public sealed partial class ProfileViewModel : ObservableObject
     [ObservableProperty]
     public partial bool HasLoaded { get; private set; }
 
+    /// <summary>Show "Message": this session has DM access and their chat settings would let us in.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(MessageCommand))]
+    public partial bool CanMessage { get; private set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(MessageCommand))]
+    public partial bool IsOpeningConversation { get; private set; }
+
     private string? _followUri;
 
     public string HandleDisplay => Handle.Length > 0 ? "@" + Handle : string.Empty;
@@ -161,6 +172,8 @@ public sealed partial class ProfileViewModel : ObservableObject
             IsFollowing = _followUri is not null;
             FollowsYou = p.Viewer?.FollowedBy is not null;
             IsSelf = string.Equals(p.Did?.ToString(), BlueskySessionService.Instance.Did, StringComparison.Ordinal);
+            CanMessage = ChatService.Instance.CanUseChat
+                && ChatAccessPolicy.CanOfferMessage(IsSelf, ToIncomingChatSetting(p.Associated?.Chat?.AllowIncoming), FollowsYou);
             HasLoaded = true;
 
             await LoadPostsAsync(reset: true);
@@ -217,6 +230,48 @@ public sealed partial class ProfileViewModel : ObservableObject
         {
             IsLoadingPosts = false;
             _gate.Release();
+        }
+    }
+
+    private static IncomingChatSetting ToIncomingChatSetting(AllowIncomingChat? allow) => allow switch
+    {
+        AllowIncomingChat.All => IncomingChatSetting.All,
+        AllowIncomingChat.Following => IncomingChatSetting.Following,
+        AllowIncomingChat.None => IncomingChatSetting.None,
+        _ => IncomingChatSetting.NotDeclared
+    };
+
+    private bool CanOpenConversation() => CanMessage && !IsOpeningConversation;
+
+    /// <summary>Opens the 1:1 conversation with this account, creating it if there isn't one yet.</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenConversation))]
+    private async Task MessageAsync()
+    {
+        if (_did is null)
+            return;
+
+        IsOpeningConversation = true;
+        try
+        {
+            AtProtoHttpResult<ConversationView> result = await BlueskySessionService.Instance.Agent.GetConversationForMembers([_did]);
+            if (!result.Succeeded || result.Result is null)
+            {
+                LogService.Warn("Profile", $"GetConversationForMembers failed: {(int)result.StatusCode} {result.AtErrorDetail?.Error}");
+                Error = result.AtErrorDetail?.Message is { Length: > 0 } message ? message : "Couldn't start a conversation with this account.";
+                return;
+            }
+
+            ConversationItem conversation = ChatMapper.ToConversationItem(result.Result, BlueskySessionService.Instance.Did);
+            ConversationPage.Open(conversation);
+        }
+        catch (Exception ex)
+        {
+            LogService.Error("Profile", "Opening a conversation threw", ex);
+            Error = "Couldn't start a conversation with this account.";
+        }
+        finally
+        {
+            IsOpeningConversation = false;
         }
     }
 
