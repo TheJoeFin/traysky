@@ -18,6 +18,15 @@
                 Tapped="Image_Tapped"
                 ToolTipService.ToolTip="{x:Bind AltText}" />
         </DataTemplate>
+
+        <DataTemplate x:Key="VideoTemplate" x:DataType="items:EmbedImage">
+            <local:EmbedImageView
+                MaxHeight="220"
+                IsVideo="True"
+                Item="{x:Bind}"
+                PopOutRequested="Video_PopOutRequested"
+                Tapped="Image_Tapped" />
+        </DataTemplate>
     </UserControl.Resources>
 
     <StackPanel x:Name="Root" Spacing="6">
@@ -27,7 +36,9 @@
 
         <!--  Images (also the thumbnail of a video)  -->
         <Grid x:Name="ImagesHost" x:Load="{x:Bind Embed.HasImages, Mode=OneWay, FallbackValue=False}">
-            <ItemsRepeater x:Name="ImagesRepeater" ItemTemplate="{StaticResource ImageTemplate}" ItemsSource="{x:Bind Embed.Images, Mode=OneWay}">
+            <!--  A video's play button is drawn by its thumbnail item, so it stays centered on the
+                  picture wherever the grid layout places it.  -->
+            <ItemsRepeater x:Name="ImagesRepeater" ItemTemplate="{x:Bind ImagesTemplate(Embed.IsVideo), Mode=OneWay}" ItemsSource="{x:Bind Embed.Images, Mode=OneWay}">
                 <ItemsRepeater.Layout>
                     <UniformGridLayout
                         ItemsStretch="Fill"
@@ -36,20 +47,6 @@
                         MinRowSpacing="4" />
                 </ItemsRepeater.Layout>
             </ItemsRepeater>
-            <Border
-                Width="40"
-                Height="40"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Background="#A0000000"
-                CornerRadius="20"
-                IsHitTestVisible="False"
-                Visibility="{x:Bind Embed.IsVideo, Mode=OneWay}">
-                <FontIcon
-                    FontSize="16"
-                    Foreground="White"
-                    Glyph="&#xE768;" />
-            </Border>
         </Grid>
 
         <!--  Link card  -->

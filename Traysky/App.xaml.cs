@@ -615,6 +615,7 @@ public partial class App : Application
             }
 
             _trayPopupWindow?.Close();
+            VideoPopoutWindow.CloseCurrent();
 
             if (_trayIcon is not null)
             {

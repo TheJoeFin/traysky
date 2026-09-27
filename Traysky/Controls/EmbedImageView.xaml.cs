@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
 using System;
 using Traysky.ViewModels.Items;
@@ -19,6 +20,10 @@ public sealed partial class EmbedImageView : UserControl
     public static readonly DependencyProperty ItemProperty = DependencyProperty.Register(
         nameof(Item), typeof(EmbedImage), typeof(EmbedImageView), new PropertyMetadata(null, OnItemChanged));
 
+    /// <summary>Overlays a play button, centered on the picture, for a video thumbnail.</summary>
+    public static readonly DependencyProperty IsVideoProperty = DependencyProperty.Register(
+        nameof(IsVideo), typeof(bool), typeof(EmbedImageView), new PropertyMetadata(false, OnIsVideoChanged));
+
     public EmbedImageView()
     {
         InitializeComponent();
@@ -29,6 +34,29 @@ public sealed partial class EmbedImageView : UserControl
         get => (EmbedImage?)GetValue(ItemProperty);
         set => SetValue(ItemProperty, value);
     }
+
+    public bool IsVideo
+    {
+        get => (bool)GetValue(IsVideoProperty);
+        set => SetValue(IsVideoProperty, value);
+    }
+
+    /// <summary>Raised by a video thumbnail's pop-out button.</summary>
+    public event EventHandler? PopOutRequested;
+
+    private static void OnIsVideoChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var view = (EmbedImageView)d;
+        Visibility visibility = (bool)e.NewValue ? Visibility.Visible : Visibility.Collapsed;
+        view.PlayGlyph.Visibility = visibility;
+        view.PopOutButton.Visibility = visibility;
+    }
+
+    private void PopOutButton_Click(object sender, RoutedEventArgs e) =>
+        PopOutRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Keeps the tap from also reaching the thumbnail and opening the inline player.</summary>
+    private void PopOutButton_Tapped(object sender, TappedRoutedEventArgs e) => e.Handled = true;
 
     private static void OnItemChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {

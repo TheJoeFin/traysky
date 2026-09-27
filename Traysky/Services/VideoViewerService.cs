@@ -15,4 +15,8 @@ public static class VideoViewerService
 
     public static void Show(Uri playlistUri, Uri? thumbnail, double aspectRatio) =>
         VideoRequested?.Invoke(null, new VideoViewerRequest(playlistUri, thumbnail, aspectRatio));
+
+    /// <summary>Plays the video in its own always-on-top window, which outlives the flyout.</summary>
+    public static void PopOut(VideoViewerRequest request, TimeSpan startAt = default) =>
+        Controls.VideoPopoutWindow.Show(request, startAt);
 }

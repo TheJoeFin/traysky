@@ -34,6 +34,9 @@ public sealed partial class ShellPage : Page
     /// <summary>A destination asked for before the frame existed (first show), applied on Loaded.</summary>
     private ShellDestination? _pendingDestination;
 
+    /// <summary>The video playing in the overlay, so it can be handed to the pop-out window.</summary>
+    private VideoViewerRequest? _currentVideo;
+
     public ShellViewModel ViewModel { get; }
 
     public ShellPage()
@@ -365,6 +368,7 @@ public sealed partial class ShellPage : Page
         if (VideoOverlay is null)
             FindName(nameof(VideoOverlay));
 
+        _currentVideo = request;
         VideoPlayer.PosterSource = request.Thumbnail is null ? null : new BitmapImage(request.Thumbnail);
         VideoPlayer.Source = MediaSource.CreateFromUri(request.PlaylistUri);
         VideoOverlay!.Visibility = Visibility.Visible;
@@ -378,6 +382,17 @@ public sealed partial class ShellPage : Page
 
     private void VideoOverlayClose_Click(object sender, RoutedEventArgs e) => CloseVideoOverlay();
 
+    /// <summary>Hands the video to the pop-out window, carrying on from where it had got to.</summary>
+    private void VideoOverlayPopOut_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentVideo is not { } video)
+            return;
+
+        TimeSpan position = VideoPlayer.MediaPlayer?.PlaybackSession.Position ?? TimeSpan.Zero;
+        CloseVideoOverlay();
+        VideoViewerService.PopOut(video, position);
+    }
+
     private void CloseVideoOverlay()
     {
         if (VideoOverlay is null)
@@ -385,6 +400,7 @@ public sealed partial class ShellPage : Page
 
         VideoPlayer.MediaPlayer?.Pause();
         VideoPlayer.Source = null;
+        _currentVideo = null;
 
         // Tear the player down rather than just hiding it, so its MediaPlayer and decoder
         // resources go with it; the next video realizes a fresh one.

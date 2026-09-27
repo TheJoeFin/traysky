@@ -41,6 +41,9 @@ public sealed partial class EmbedPresenter : UserControl
 
     public string AtHandle(string? handle) => string.IsNullOrEmpty(handle) ? string.Empty : "@" + handle;
 
+    public DataTemplate ImagesTemplate(bool isVideo) =>
+        (DataTemplate)Resources[isVideo ? "VideoTemplate" : "ImageTemplate"];
+
     private void Image_Tapped(object sender, TappedRoutedEventArgs e)
     {
         e.Handled = true;
@@ -58,6 +61,14 @@ public sealed partial class EmbedPresenter : UserControl
 
         if (sender is EmbedImageView { Item: { } image })
             ImageViewerService.Show(image.FullSize);
+        else
+            _ = RichTextBuilder.OpenAsync(FallbackUrl);
+    }
+
+    private void Video_PopOutRequested(object? sender, EventArgs e)
+    {
+        if (Embed?.VideoPlaylistUri is { } playlist)
+            VideoViewerService.PopOut(new VideoViewerRequest(playlist, Embed.VideoThumbnail, Embed.VideoAspectRatio));
         else
             _ = RichTextBuilder.OpenAsync(FallbackUrl);
     }

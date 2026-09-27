@@ -199,22 +199,39 @@
                 AutoPlay="True"
                 Stretch="Uniform"
                 Tapped="VideoPlayer_Tapped" />
-            <Button
-                Width="32"
-                Height="32"
+            <StackPanel
                 Margin="8"
                 HorizontalAlignment="Right"
                 VerticalAlignment="Top"
-                Background="#33FFFFFF"
-                BorderThickness="0"
-                Click="VideoOverlayClose_Click"
-                CornerRadius="16"
-                ToolTipService.ToolTip="Close">
-                <FontIcon
-                    FontSize="13"
-                    Foreground="White"
-                    Glyph="&#xE711;" />
-            </Button>
+                Orientation="Horizontal"
+                Spacing="6">
+                <Button
+                    Width="32"
+                    Height="32"
+                    Background="#33FFFFFF"
+                    BorderThickness="0"
+                    Click="VideoOverlayPopOut_Click"
+                    CornerRadius="16"
+                    ToolTipService.ToolTip="Pop out">
+                    <FontIcon
+                        FontSize="13"
+                        Foreground="White"
+                        Glyph="&#xE8A7;" />
+                </Button>
+                <Button
+                    Width="32"
+                    Height="32"
+                    Background="#33FFFFFF"
+                    BorderThickness="0"
+                    Click="VideoOverlayClose_Click"
+                    CornerRadius="16"
+                    ToolTipService.ToolTip="Close">
+                    <FontIcon
+                        FontSize="13"
+                        Foreground="White"
+                        Glyph="&#xE711;" />
+                </Button>
+            </StackPanel>
         </Grid>
     </Grid>
 </Page>
