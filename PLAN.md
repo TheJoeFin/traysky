@@ -314,7 +314,7 @@ Browser sign-in sits next to app passwords on the login page; neither replaces t
 - **Client identity:** `client_id` is `https://thejoefin.github.io/traysky/oauth/client-metadata.json`,
   served by GitHub Pages from `docs/` on `main` (Pages must be enabled for the repo). Public native
   client: `application_type: native`, `token_endpoint_auth_method: none`, DPoP-bound tokens,
-  scopes `atproto transition:generic`.
+  scopes `atproto transition:generic transition:chat.bsky`.
 - **Redirect:** atproto requires a native custom scheme to be the client_id host reversed, so it
   is `io.github.thejoefin:/traysky/callback`, declared as a `windows.protocol` in the manifest.
   `OAuthCallbackPolicy` holds all of these constants; `OAuthCallbackPolicyTests` checks that the
@@ -336,6 +336,32 @@ Browser sign-in sits next to app passwords on the login page; neither replaces t
   persisted the DPoP proof key and nonce.
 - **Trimming:** Duende's OidcClient assemblies are rooted like idunno's until a trimmed Release
   build has been seen to sign in.
+
+### 4.10 Direct messages
+
+Chat goes through the PDS's chat proxy (`atproto-proxy: did:web:api.bsky.chat`), which idunno's
+`BlueskyAgent` chat methods (`ListConversations`, `GetMessages`, `SendMessage`, `UpdateRead`,
+`AcceptConversation`, `GetConversationForMembers`) set up.
+
+- **Access check:** a session only gets into chat if it was granted DM access: an app password
+  made with "Allow access to your direct messages", or an OAuth grant with `transition:chat.bsky`.
+  There's no call that reports the grant, so `ChatService` makes a real `listConvos` call on
+  sign-in and on each flyout reopen (at most every 30 s). `ChatAccessPolicy.FromProbe` reads the
+  result: success allows chat, a 4xx (400 "Bad token scope", 401/403 for a missing scope,
+  404/501 when the PDS has no chat proxy) denies it, and offline, 5xx or 429 keep the last answer.
+  The title bar's Messages button (Ctrl+3) only shows while `CanUseChat` is true.
+- **OAuth:** browser sign-in asks for `transition:chat.bsky` alongside `transition:generic`.
+  `OAuthCallbackPolicy.Scopes` and `docs/oauth/client-metadata.json` must list the same scopes
+  (a test checks), and the metadata must be live on Pages before a build asks for a new scope.
+  Sessions signed in before the scope was added need to sign in again to get DMs.
+- **Pages:** `MessagesPage` (conversations, requests labelled, unread badges) →
+  `ConversationPage` (bubbles grouped into runs by `ChatThreadPolicy`, older pages as you scroll
+  up, a 5 s poll while open and visible, Enter to send). Opening a conversation marks it read.
+  Profiles get a Message button when `ChatAccessPolicy.CanOfferMessage` agrees with their
+  `allowIncoming` setting.
+- **Unread count:** the number of accepted, unmuted conversations with unread messages,
+  refreshed on reopen and Ctrl+R only. It isn't polled in the background and doesn't feed the
+  tray badge or toasts.
 
 ---
 
@@ -406,8 +432,8 @@ tutorial-on-first-run (Traydio's `TutorialWindow` pattern), Store assets, Releas
 
 **M6 — Later / maybe**
 OAuth, multiple accounts (`SessionStore` keyed by DID), custom feeds picker (`GetFeed` with
-saved feed URIs from `GetPreferences`), Jetstream-driven live badge instead of polling, DMs
-(`transition:chat.bsky` scope — OAuth only).
+saved feed URIs from `GetPreferences`), Jetstream-driven live badge instead of polling.
+(DMs are done; see §4.10.)
 
 ---
 
