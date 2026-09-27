@@ -16,7 +16,7 @@ using Windows.System;
 namespace Traysky.Pages;
 
 /// <summary>
-/// The flyout's chrome: title bar (with the notifications, profile, settings and quit buttons),
+/// The flyout's chrome: title bar (with the notifications, profile-and-settings and quit buttons),
 /// the account's feed tab row, and the frame the pages live in. One instance lives for the
 /// app's life inside <see cref="Controls.TrayPopupWindow"/>.
 /// </summary>
@@ -294,19 +294,23 @@ public sealed partial class ShellPage : Page
 
     private void NotificationsButton_Click(object sender, RoutedEventArgs e) => NavigateTo(ShellDestination.Notifications);
 
-    private void ProfileButton_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Opens your own profile, which carries the Settings button. Signed out there is no
+    /// profile, so it goes straight to Settings instead.
+    /// </summary>
+    private void AccountButton_Click(object sender, RoutedEventArgs e)
     {
         BlueskySessionService session = BlueskySessionService.Instance;
+        if (!session.IsSignedIn)
+        {
+            if (_navigation.Frame?.Content is not SettingsPage)
+                _navigation.Navigate(typeof(SettingsPage));
+            return;
+        }
+
         if (_navigation.Frame?.Content is ProfilePage { ViewModel.IsSelf: true })
             return;
         ProfilePage.Open(session.Did ?? session.Handle ?? string.Empty);
-    }
-
-    private void SettingsButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_navigation.Frame?.Content is SettingsPage)
-            return;
-        _navigation.Navigate(typeof(SettingsPage));
     }
 
     private void QuitButton_Click(object sender, RoutedEventArgs e)

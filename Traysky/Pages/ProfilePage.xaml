@@ -64,6 +64,18 @@
                             IsEnabled="{x:Bind ViewModel.CanFollow, Mode=OneWay}"
                             Style="{x:Bind FollowButtonStyle(ViewModel.IsFollowing), Mode=OneWay}"
                             Visibility="{x:Bind helpers:BindHelpers.CollapsedIf(ViewModel.IsSelf), Mode=OneWay}" />
+                        <!--  Your own profile is where Settings lives (the title bar's account button lands here).  -->
+                        <Button
+                            Grid.Column="2"
+                            Margin="0,40,0,0"
+                            VerticalAlignment="Bottom"
+                            Click="SettingsButton_Click"
+                            Visibility="{x:Bind ViewModel.IsSelf, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontSize="14" Glyph="&#xE713;" />
+                                <TextBlock Text="Settings" />
+                            </StackPanel>
+                        </Button>
                     </Grid>
 
                     <StackPanel Margin="12,6,12,8" Spacing="4">

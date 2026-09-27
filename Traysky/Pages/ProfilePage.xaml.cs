@@ -43,6 +43,8 @@ public sealed partial class ProfilePage : Page
     public Style FollowButtonStyle(bool following) =>
         (Style)Application.Current.Resources[following ? "DefaultButtonStyle" : "AccentButtonStyle"];
 
+    private void SettingsButton_Click(object sender, RoutedEventArgs e) => NavigationService.Instance.Navigate(typeof(SettingsPage));
+
     private void PostCard_ThreadRequested(object? sender, PostItem post) => PostPage.Open(post);
 
     private void OnLoaded(object sender, RoutedEventArgs e)

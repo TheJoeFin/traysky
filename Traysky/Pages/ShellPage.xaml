@@ -50,20 +50,13 @@
                             Visibility="{x:Bind ViewModel.HasUnread, Mode=OneWay}"
                             Value="{x:Bind ViewModel.UnreadCount, Mode=OneWay}" />
                     </Grid>
+                    <!--  Your profile while signed in (Settings is a button on it), straight to Settings while signed out.  -->
                     <Button
-                        x:Name="ProfileButton"
-                        Click="ProfileButton_Click"
+                        x:Name="AccountButton"
+                        Click="AccountButton_Click"
                         Style="{StaticResource TitleBarButtonStyle}"
-                        ToolTipService.ToolTip="Your profile"
-                        Visibility="{x:Bind ViewModel.IsSignedIn, Mode=OneWay}">
-                        <FontIcon FontSize="14" Glyph="&#xE77B;" />
-                    </Button>
-                    <Button
-                        x:Name="SettingsButton"
-                        Click="SettingsButton_Click"
-                        Style="{StaticResource TitleBarButtonStyle}"
-                        ToolTipService.ToolTip="Settings">
-                        <FontIcon FontSize="14" Glyph="&#xE713;" />
+                        ToolTipService.ToolTip="Profile and settings">
+                        <FontIcon FontSize="14" Glyph="&#xEF58;" />
                     </Button>
                     <Button
                         x:Name="QuitButton"
