@@ -6,7 +6,7 @@
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
   "redirect_uris": ["io.github.thejoefin:/traysky/callback"],
-  "scope": "atproto transition:generic",
+  "scope": "atproto transition:generic transition:chat.bsky",
   "token_endpoint_auth_method": "none",
   "dpop_bound_access_tokens": true
 }

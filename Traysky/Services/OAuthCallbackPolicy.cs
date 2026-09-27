@@ -25,8 +25,12 @@ public static class OAuthCallbackPolicy
 
     public const string RedirectUri = Scheme + ":" + CallbackPath;
 
-    /// <summary><c>atproto</c> is mandatory; <c>transition:generic</c> is everything but DMs, which Traysky does not use.</summary>
-    public static readonly string[] Scopes = ["atproto", "transition:generic"];
+    /// <summary>
+    /// <c>atproto</c> is mandatory; <c>transition:generic</c> is everything but DMs, and
+    /// <c>transition:chat.bsky</c> adds DMs. Must match <c>scope</c> in docs/oauth/client-metadata.json,
+    /// which has to be live on Pages before a build asks for a new scope.
+    /// </summary>
+    public static readonly string[] Scopes = ["atproto", "transition:generic", "transition:chat.bsky"];
 
     /// <summary>True when <paramref name="uri"/> is the OAuth redirect (with or without a query), not some other link into the app.</summary>
     public static bool IsCallback(Uri? uri) =>
