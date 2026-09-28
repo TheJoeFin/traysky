@@ -3,8 +3,12 @@ param(
     [ValidateSet('Release', 'Debug')]
     [string]$Configuration = 'Release',
 
-    # Root of the Traysky repository to build. Defaults to the folder this script lives in.
+    # Root of the repository to build. Defaults to the folder this script lives in.
     [string]$RepoRoot,
+
+    # The packaged app project, as a .csproj path or a project name. Only needed when
+    # the repo has more than one project with a Package.appxmanifest next to it.
+    [string]$Project,
 
     # Release notes for the GitHub release. When omitted, GitHub generates notes
     # from the commits/PRs since the previous release.
@@ -22,10 +26,39 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# A packaged app project is a .csproj with a Package.appxmanifest next to it
+# (test and library projects have none). Returns the matching .csproj files under $Root.
+function Find-PackagedProject {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Root
+    )
+
+    Get-ChildItem -LiteralPath $Root -Filter '*.csproj' -File -Recurse -Depth 3 -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\(bin|obj|AppPackages)\\' } |
+        Where-Object { Test-Path -LiteralPath (Join-Path $_.DirectoryName 'Package.appxmanifest') } |
+        Where-Object { -not $Project -or $_.BaseName -eq $Project }
+}
+
+# An explicit .csproj path pins both the project and (via git) the repo root.
+$projectFile = $null
+if ($Project -and $Project.EndsWith('.csproj', [StringComparison]::OrdinalIgnoreCase)) {
+    if (-not (Test-Path -LiteralPath $Project)) {
+        throw "Project not found: $Project"
+    }
+    $projectFile = Get-Item -LiteralPath $Project
+    if (-not $RepoRoot) {
+        $RepoRoot = & git -C $projectFile.DirectoryName rev-parse --show-toplevel 2>$null
+        if (-not $RepoRoot) {
+            $RepoRoot = $projectFile.DirectoryName
+        }
+    }
+}
+
 # $PSScriptRoot is not reliable in every host (e.g. ISE/VS Code run-selection or
 # dot-sourcing report the caller's folder), so resolve the root explicitly: an
 # explicit -RepoRoot wins, then the script's own folder, then the git repo of the
-# current directory. Only accept a candidate that actually contains the project.
+# current directory. Only accept a candidate that actually contains a packaged project.
 if (-not $RepoRoot) {
     $candidates = @(
         $(if ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path }),
@@ -35,11 +68,11 @@ if (-not $RepoRoot) {
     ) | Where-Object { $_ }
 
     $RepoRoot = $candidates |
-        Where-Object { Test-Path -LiteralPath (Join-Path $_ 'Traysky\Traysky.csproj') } |
+        Where-Object { Find-PackagedProject -Root $_ } |
         Select-Object -First 1
 
     if (-not $RepoRoot) {
-        throw "Could not locate the Traysky repository (tried: $($candidates -join ', ')). Pass -RepoRoot or run from inside the repo."
+        throw "Could not locate a repository with a packaged app project (tried: $($candidates -join ', ')). Pass -RepoRoot or run from inside the repo."
     }
 }
 
@@ -48,16 +81,29 @@ if (-not (Test-Path -LiteralPath $RepoRoot)) {
 }
 
 $repoRoot = (Resolve-Path -LiteralPath $RepoRoot).ProviderPath
-$projectPath = Join-Path $repoRoot 'Traysky\Traysky.csproj'
-$manifestPath = Join-Path $repoRoot 'Traysky\Package.appxmanifest'
-$outputRoot = Join-Path $repoRoot 'Traysky\AppPackages\GitHub'
-$publishProfilesRoot = Join-Path $repoRoot 'Traysky\Properties\PublishProfiles'
 
-# Azure Trusted Signing (Artifact Signing) configuration.
-$signtoolPath = 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe'
-$signingDlibPath = 'C:\Users\josep\AppData\Local\Microsoft\MicrosoftArtifactSigningClientTools\Azure.CodeSigning.Dlib.dll'
-$signingMetadataPath = 'C:\Users\josep\OneDrive\Projects\Development\Apps\metadata.json'
-$timestampUrl = 'http://timestamp.acs.microsoft.com'
+if (-not $projectFile) {
+    $found = @(Find-PackagedProject -Root $repoRoot)
+    if ($found.Count -eq 0) {
+        $what = if ($Project) { "named '$Project'" } else { 'with a Package.appxmanifest next to it' }
+        throw "No project $what was found under $repoRoot."
+    }
+    if ($found.Count -gt 1) {
+        throw "Found more than one packaged project; pass -Project with one of: $(($found | ForEach-Object BaseName) -join ', ')."
+    }
+    $projectFile = $found[0]
+}
+
+$appName = $projectFile.BaseName
+$projectDir = $projectFile.DirectoryName
+$projectPath = $projectFile.FullName
+$manifestPath = Join-Path $projectDir 'Package.appxmanifest'
+$outputRoot = Join-Path $projectDir 'AppPackages\GitHub'
+$publishProfilesRoot = Join-Path $projectDir 'Properties\PublishProfiles'
+
+# Signing is done by the maintainer's local 'sign-msix' profile function, so the
+# signing configuration stays out of the repo.
+$signCommand = 'sign-msix'
 
 $builds = @(
     @{
@@ -206,19 +252,15 @@ function Invoke-MsixSigning {
         [System.IO.FileInfo[]]$Files
     )
 
-    foreach ($file in $Files) {
-        Write-Host "Signing $($file.Name)..."
-        & $signtoolPath sign `
-            /v /fd SHA256 `
-            /tr $timestampUrl `
-            /td SHA256 `
-            /dlib $signingDlibPath `
-            /dmdf $signingMetadataPath `
-            $file.FullName
+    & $signCommand -Path $Files.FullName
 
-        if ($LASTEXITCODE -ne 0) {
-            throw "signtool failed for $($file.Name) (exit code $LASTEXITCODE)."
+    # Don't rely on the signing command's error reporting: confirm every package is signed.
+    foreach ($file in $Files) {
+        $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
+        if ($signature.Status -ne 'Valid') {
+            throw "$($file.Name) is not validly signed (status: $($signature.Status))."
         }
+        Write-Host "  Verified signature on $($file.Name): $($signature.SignerCertificate.Subject)"
     }
 }
 
@@ -242,10 +284,8 @@ try {
         }
     }
 
-    foreach ($signingFile in $signtoolPath, $signingDlibPath, $signingMetadataPath) {
-        if (-not (Test-Path -LiteralPath $signingFile)) {
-            throw "Signing prerequisite not found: $signingFile"
-        }
+    if (-not (Get-Command $signCommand -ErrorAction SilentlyContinue)) {
+        throw "'$signCommand' was not found. It is defined in the maintainer's PowerShell profile; run this script from a pwsh session that loaded it."
     }
 
     $manifestContent = [System.IO.File]::ReadAllText($manifestPath)
@@ -256,6 +296,8 @@ try {
     $version = $versionMatch.Groups[1].Value
     $tag = Get-ReleaseTag -Version $version
     $versionedOutputDir = Join-Path $outputRoot "$version-gh"
+
+    Write-Host "Project: $appName ($projectPath), version $version"
 
     # Check git/gh state before the (slow) build so problems surface immediately.
     if (-not $SkipRelease) {
@@ -276,10 +318,14 @@ try {
         New-Item -ItemType Directory -Path $versionedOutputDir -Force | Out-Null
     }
     foreach ($build in $builds) {
-        # Exclude Dependencies\* (e.g. Microsoft.WindowsAppRuntime.2.msix) - only collect Traysky's own package.
-        $msixFiles = Get-ChildItem -LiteralPath $build.OutputDir -Recurse -Filter 'Traysky_*.msix' -File
+        # Exclude Dependencies\* (e.g. Microsoft.WindowsAppRuntime.2.msix) - only collect the app's own package.
+        $msixFiles = @(Get-ChildItem -LiteralPath $build.OutputDir -Recurse -Filter '*.msix' -File |
+            Where-Object { $_.FullName -notmatch '\\Dependencies\\' })
         if (-not $msixFiles) {
             throw "No .msix file was found under $($build.OutputDir) for $($build.Name)."
+        }
+        if ($msixFiles.Count -gt 1) {
+            throw "Expected one app package under $($build.OutputDir) for $($build.Name), found: $(($msixFiles | ForEach-Object Name) -join ', ')."
         }
         foreach ($msix in $msixFiles) {
             $destination = Join-Path $versionedOutputDir $msix.Name
