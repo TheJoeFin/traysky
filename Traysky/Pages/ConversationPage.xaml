@@ -113,7 +113,53 @@
                                 Text="{x:Bind RunTimeText}" />
                         </StackPanel>
 
+                        <!--  Received messages end in a "..." button (dim until the pointer is over the message) that opens reactions and copy.  -->
+                        <Grid
+                            HorizontalAlignment="{x:Bind Alignment}"
+                            Background="Transparent"
+                            PointerEntered="Message_PointerEntered"
+                            PointerExited="Message_PointerExited">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button
+                                x:Name="ReactButton"
+                                Grid.Column="1"
+                                Padding="6"
+                                VerticalAlignment="Center"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Opacity="0.45"
+                                ToolTipService.ToolTip="Options"
+                                Visibility="{x:Bind OptionsButtonVisibility}">
+                                <FontIcon FontSize="14" Glyph="&#xE712;" />
+                                <Button.Flyout>
+                                    <Flyout Placement="Top">
+                                        <StackPanel Spacing="6">
+                                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                                <Button Click="Emoji_Click" Content="👍" Tag="{x:Bind}" />
+                                                <Button Click="Emoji_Click" Content="❤️" Tag="{x:Bind}" />
+                                                <Button Click="Emoji_Click" Content="😂" Tag="{x:Bind}" />
+                                                <Button Click="Emoji_Click" Content="😮" Tag="{x:Bind}" />
+                                                <Button Click="Emoji_Click" Content="😢" Tag="{x:Bind}" />
+                                                <Button Click="Emoji_Click" Content="🙏" Tag="{x:Bind}" />
+                                            </StackPanel>
+                                            <Button
+                                                HorizontalAlignment="Stretch"
+                                                Click="CopyText_Click"
+                                                Content="Copy text"
+                                                Tag="{x:Bind}"
+                                                Visibility="{x:Bind HasText}" />
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+
                         <Border
+                            Grid.Column="0"
+                            MaxWidth="268"
                             Padding="12,7"
                             HorizontalAlignment="{x:Bind Alignment}"
                             Background="{x:Bind helpers:BindHelpers.BrushFromKey(BubbleBrushKey)}"
@@ -121,6 +167,7 @@
                             ToolTipService.ToolTip="{x:Bind TimeText}">
                             <StackPanel Spacing="6">
                                 <RichTextBlock
+                                    MaxWidth="244"
                                     helpers:ChatMessageText.Message="{x:Bind}"
                                     Foreground="{x:Bind helpers:BindHelpers.BrushFromKey(TextBrushKey)}"
                                     IsTextSelectionEnabled="True"
@@ -138,13 +185,14 @@
                                     Visibility="{x:Bind HasEmbed}" />
                             </StackPanel>
                         </Border>
+                        </Grid>
 
                         <TextBlock
                             Margin="6,0"
                             HorizontalAlignment="{x:Bind Alignment}"
                             FontSize="12"
-                            Text="{x:Bind ReactionsText}"
-                            Visibility="{x:Bind HasReactions}" />
+                            Text="{x:Bind ReactionsText, Mode=OneWay}"
+                            Visibility="{x:Bind HasReactions, Mode=OneWay}" />
                     </StackPanel>
                 </DataTemplate>
             </ListView.ItemTemplate>

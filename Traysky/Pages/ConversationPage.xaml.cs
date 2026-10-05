@@ -2,6 +2,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
@@ -9,6 +10,7 @@ using System;
 using Traysky.Services;
 using Traysky.ViewModels;
 using Traysky.ViewModels.Items;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 using Windows.UI.Core;
 using DispatcherQueuePriority = Microsoft.UI.Dispatching.DispatcherQueuePriority;
@@ -119,6 +121,53 @@ public sealed partial class ConversationPage : Page
         e.Handled = true;
         if (ViewModel.SendCommand.CanExecute(null))
             ViewModel.SendCommand.Execute(null);
+    }
+
+    /// <summary>Shows the react button while the pointer is over a message, hides it otherwise.</summary>
+    private void Message_PointerEntered(object sender, PointerRoutedEventArgs e) => ShowReactButton(sender, true);
+
+    private void Message_PointerExited(object sender, PointerRoutedEventArgs e) => ShowReactButton(sender, false);
+
+    private static void ShowReactButton(object sender, bool over)
+    {
+        if (sender is FrameworkElement row && row.FindName("ReactButton") is Button button)
+        {
+            // Keep it showing while its flyout is open, even if the pointer moves onto the flyout.
+            button.Opacity = over || button.Flyout?.IsOpen == true ? 1 : 0.45;
+        }
+    }
+
+    private void CopyText_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: MessageItem { HasText: true } message } button)
+        {
+            DataPackage package = new();
+            package.SetText(message.Text);
+            Clipboard.SetContent(package);
+            CloseOpenFlyouts(button);
+        }
+    }
+
+    private static void CloseOpenFlyouts(DependencyObject from)
+    {
+        if (from is not FrameworkElement { XamlRoot: { } root })
+            return;
+
+        foreach (Popup popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(root))
+        {
+            if (popup.Child is FlyoutPresenter)
+                popup.IsOpen = false;
+        }
+    }
+
+    private void Emoji_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: MessageItem message, Content: string emoji } button)
+        {
+            // The picker is the react button's flyout; close it as the reaction goes out.
+            CloseOpenFlyouts(button);
+            _ =ViewModel.ToggleReactionAsync(message, emoji);
+        }
     }
 
     private void Header_Tapped(object sender, TappedRoutedEventArgs e)

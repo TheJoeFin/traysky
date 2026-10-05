@@ -88,6 +88,8 @@ public static class ChatMapper
                     Text = text,
                     Segments = FacetSegmenter.Segment(text, FeedMapper.ToFacetInputs(m.Facets)),
                     Embed = FeedMapper.ToEmbedItem(m.Embed),
+                    Reactions = (m.Reactions ?? []).Where(r => !string.IsNullOrEmpty(r.Value))
+                        .Select(r => (r.Sender?.Did?.ToString() ?? string.Empty, r.Value!)).ToList(),
                     ReactionsText = SummarizeReactions(m.Reactions?.Select(r => r.Value)),
                     SentAt = m.SentAt
                 };

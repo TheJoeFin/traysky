@@ -259,6 +259,63 @@ public sealed partial class ConversationViewModel : ObservableObject
         }
     }
 
+    /// <summary>Adds my <paramref name="emoji"/> to a message, or takes it back if it's already there. Shows at once, undone if the server refuses.</summary>
+    public async Task ToggleReactionAsync(MessageItem message, string emoji)
+    {
+        if (Conversation is null || message.IsDeleted)
+            return;
+
+        string self = BlueskySessionService.Instance.Did ?? PreviewMode.SelfDid;
+        bool remove = message.HasReacted(self, emoji);
+
+        void Apply(bool removing)
+        {
+            if (removing)
+                message.RemoveReaction(self, emoji);
+            else
+                message.AddReaction(self, emoji);
+        }
+
+        Apply(remove);
+        if (PreviewMode.IsEnabled)
+            return;
+
+        try
+        {
+            BlueskySessionService session = BlueskySessionService.Instance;
+            await session.EnsureAuthenticatedAsync();
+
+            bool succeeded;
+            System.Net.HttpStatusCode status;
+            AtErrorDetail? detail;
+            if (remove)
+            {
+                var result = await session.Agent.RemoveReaction(Conversation.Id, message.Id, emoji);
+                (succeeded, status, detail) = (result.Succeeded, result.StatusCode, result.AtErrorDetail);
+            }
+            else
+            {
+                var result = await session.Agent.AddReaction(Conversation.Id, message.Id, emoji);
+                (succeeded, status, detail) = (result.Succeeded, result.StatusCode, result.AtErrorDetail);
+            }
+
+            if (!succeeded)
+            {
+                Apply(!remove);
+                Error = status == 0
+                    ? "Couldn't reach Bluesky. Your reaction wasn't saved."
+                    : detail?.Message is { Length: > 0 } text ? text : "Your reaction wasn't saved.";
+                LogService.Warn("Chat", $"{(remove ? "RemoveReaction" : "AddReaction")} failed: {(int)status} {detail?.Error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Apply(!remove);
+            Error = "Your reaction wasn't saved.";
+            LogService.Warn("Chat", $"Reacting threw: {ex.Message}");
+        }
+    }
+
     /// <summary>Moves a request into the inbox without replying.</summary>
     [RelayCommand]
     private async Task AcceptAsync()
