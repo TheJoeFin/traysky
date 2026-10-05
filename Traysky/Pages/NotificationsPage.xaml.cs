@@ -50,6 +50,13 @@ public sealed partial class NotificationsPage : Page
         _seenTimer.Stop();
     }
 
+    private async void RefreshContainer_RefreshRequested(RefreshContainer sender, RefreshRequestedEventArgs args)
+    {
+        // Holding the deferral keeps the spinner up until the fetch lands.
+        using Windows.Foundation.Deferral deferral = args.GetDeferral();
+        await ViewModel.RefreshAsync();
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (_scrollViewer is not null)

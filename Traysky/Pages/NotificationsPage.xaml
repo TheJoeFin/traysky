@@ -11,6 +11,8 @@
     mc:Ignorable="d">
 
     <Grid>
+        <!--  Pull to refresh. RefreshContainer's pull gesture is touch/pen only; mouse users have the tab re-click.  -->
+        <RefreshContainer RefreshRequested="RefreshContainer_RefreshRequested">
         <ListView
             x:Name="NotificationList"
             IsItemClickEnabled="True"
@@ -126,6 +128,7 @@
                 </Grid>
             </ListView.Footer>
         </ListView>
+        </RefreshContainer>
 
         <ProgressRing
             Width="32"
