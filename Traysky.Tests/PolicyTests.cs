@@ -125,6 +125,8 @@ public class UnreadBadgePolicyTests
     {
         StringAssert.Contains(UnreadBadgePolicy.Tooltip(true, "joe.bsky.social", 1, false), "1 unread notification");
         StringAssert.Contains(UnreadBadgePolicy.Tooltip(true, "joe.bsky.social", 2, false), "2 unread notifications");
+        StringAssert.Contains(UnreadBadgePolicy.Tooltip(true, "joe.bsky.social", 0, false, unreadMessages: 1), "1 unread message");
+        StringAssert.Contains(UnreadBadgePolicy.Tooltip(true, "joe.bsky.social", 2, false, unreadMessages: 3), "3 unread messages");
         StringAssert.Contains(UnreadBadgePolicy.Tooltip(false, null, 0, false), "sign in");
         Assert.IsTrue(UnreadBadgePolicy.Tooltip(true, "joe.bsky.social", 999, true).Length < 128);
     }

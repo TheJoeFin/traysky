@@ -56,15 +56,22 @@ public static class UnreadBadgePolicy
     };
 
     /// <summary>The tooltip to go with the icon. Kept short: Windows truncates at 127 chars.</summary>
-    public static string Tooltip(bool isSignedIn, string? handle, int unreadCount, bool isOffline)
+    public static string Tooltip(bool isSignedIn, string? handle, int unreadCount, bool isOffline, int unreadMessages = 0)
     {
         if (!isSignedIn)
             return "Traysky — click to sign in";
 
         string who = string.IsNullOrEmpty(handle) ? "Traysky" : $"Traysky — @{handle}";
 
-        if (unreadCount > 0)
-            return $"{who}\n{unreadCount} unread notification{(unreadCount == 1 ? "" : "s")}";
+        if (unreadCount > 0 || unreadMessages > 0)
+        {
+            string text = who;
+            if (unreadCount > 0)
+                text += $"\n{unreadCount} unread notification{(unreadCount == 1 ? "" : "s")}";
+            if (unreadMessages > 0)
+                text += $"\n{unreadMessages} unread message{(unreadMessages == 1 ? "" : "s")}";
+            return text;
+        }
 
         if (isOffline)
             return $"{who}\nOffline";

@@ -173,6 +173,7 @@ public partial class App : Application
         _servicesStarted = true;
         session.PropertyChanged += OnSessionPropertyChanged;
         poll.PropertyChanged += OnPollPropertyChanged;
+        ChatService.Instance.PropertyChanged += OnChatPropertyChanged;
         _uiSettings.ColorValuesChanged += OnColorValuesChanged;
 
         InitializeTrayIcon();
@@ -451,6 +452,12 @@ public partial class App : Application
             UpdateTrayIcon();
     }
 
+    private void OnChatPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ChatService.UnreadCount))
+            UpdateTrayIcon();
+    }
+
     private void OnColorValuesChanged(UISettings sender, object args) => UpdateTrayIcon();
 
     private void UpdateTrayIcon()
@@ -468,9 +475,10 @@ public partial class App : Application
         NotificationPollService poll = NotificationPollService.Instance;
 
         bool isDarkTaskbar = IsSystemInDarkMode();
-        TrayIconVariant variant = UnreadBadgePolicy.Choose(session.IsSignedIn, poll.UnreadCount, poll.IsOffline, isDarkTaskbar);
+        int unreadMessages = ChatService.Instance.UnreadCount;
+        TrayIconVariant variant = UnreadBadgePolicy.Choose(session.IsSignedIn, poll.UnreadCount + unreadMessages, poll.IsOffline, isDarkTaskbar);
         string iconPath = UnreadBadgePolicy.AssetPath(variant, isDarkTaskbar);
-        string tooltip = UnreadBadgePolicy.Tooltip(session.IsSignedIn, session.Handle, poll.UnreadCount, poll.IsOffline);
+        string tooltip = UnreadBadgePolicy.Tooltip(session.IsSignedIn, session.Handle, poll.UnreadCount, poll.IsOffline, unreadMessages);
 
         try
         {

@@ -150,6 +150,11 @@ public sealed partial class NotificationPollService : ObservableObject
                 SetUnread(result.Result ?? 0);
                 LastSuccessfulPollUtc = DateTimeOffset.UtcNow;
 
+                // New chats feed the tray dot too, so check them on the same cadence. Only once
+                // chat has proven available; sign-in and the flyout do the initial probe.
+                if (ChatService.Instance.CanUseChat)
+                    _ = ChatService.Instance.CheckAsync(force: true);
+
                 if (wasBackedOff)
                     Rearm();
                 return;
