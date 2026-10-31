@@ -100,7 +100,9 @@ public static class LogService
 
     public static void Error(string component, string message, Exception? ex = null)
     {
-        string text = ex is null ? message : $"{message} :: {ex.GetType().Name}: {ex.Message}";
+        string text = ex is null ? message : $"{message} :: {ex.GetType().Name} (0x{ex.HResult:X8}): {ex.Message.Trim()}{Environment.NewLine}{ex.StackTrace}";
+        for (Exception? inner = ex?.InnerException; inner is not null; inner = inner.InnerException)
+            text += $"{Environment.NewLine}  Inner {inner.GetType().Name} (0x{inner.HResult:X8}): {inner.Message.Trim()}{Environment.NewLine}{inner.StackTrace}";
         Enqueue("ERROR", component, text);
     }
 
