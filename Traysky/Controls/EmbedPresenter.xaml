@@ -15,20 +15,16 @@
         <!--  Each section below is x:Load'ed rather than collapsed: a card realizes only the one
               layout its embed actually uses, instead of building (and holding) all of them.  -->
 
-        <!--  Images (also the thumbnail of a video)  -->
-        <Grid x:Name="ImagesHost" x:Load="{x:Bind Embed.HasImages, Mode=OneWay, FallbackValue=False}">
-            <!--  A video's play button is drawn by its thumbnail item, so it stays centered on the
-                  picture wherever the grid layout places it.  -->
-            <ItemsRepeater x:Name="ImagesRepeater" ItemTemplate="{x:Bind ImagesFactory(Embed.IsVideo), Mode=OneWay}" ItemsSource="{x:Bind Embed.Images, Mode=OneWay}">
-                <ItemsRepeater.Layout>
-                    <UniformGridLayout
-                        ItemsStretch="Fill"
-                        MinColumnSpacing="4"
-                        MinItemWidth="140"
-                        MinRowSpacing="4" />
-                </ItemsRepeater.Layout>
-            </ItemsRepeater>
-        </Grid>
+        <!--  Images (also the thumbnail of a video). A video's play button is drawn by its
+              thumbnail, so it stays centered on the picture wherever the grid places it.  -->
+        <local:EmbedImageGrid
+            x:Name="ImagesGrid"
+            ImageTapped="Images_ImageTapped"
+            Images="{x:Bind Embed.Images, Mode=OneWay}"
+            IsVideo="{x:Bind Embed.IsVideo, Mode=OneWay}"
+            MinItemWidth="140"
+            PopOutRequested="Video_PopOutRequested"
+            x:Load="{x:Bind Embed.HasImages, Mode=OneWay, FallbackValue=False}" />
 
         <!--  Link card  -->
         <Border
@@ -112,15 +108,11 @@
                     TextTrimming="CharacterEllipsis"
                     TextWrapping="Wrap"
                     Visibility="{x:Bind Embed.HasQuoteText, Mode=OneWay}" />
-                <ItemsRepeater ItemTemplate="{x:Bind ImageFactory}" ItemsSource="{x:Bind Embed.QuoteImages, Mode=OneWay}" Visibility="{x:Bind Embed.HasQuoteImages, Mode=OneWay}">
-                    <ItemsRepeater.Layout>
-                        <UniformGridLayout
-                            ItemsStretch="Fill"
-                            MinColumnSpacing="4"
-                            MinItemWidth="120"
-                            MinRowSpacing="4" />
-                    </ItemsRepeater.Layout>
-                </ItemsRepeater>
+                <local:EmbedImageGrid
+                    ImageTapped="Images_ImageTapped"
+                    Images="{x:Bind Embed.QuoteImages, Mode=OneWay}"
+                    MinItemWidth="120"
+                    Visibility="{x:Bind Embed.HasQuoteImages, Mode=OneWay}" />
             </StackPanel>
         </Border>
 

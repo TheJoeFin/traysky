@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
 using System;
+using Traysky.Services;
 using Traysky.ViewModels.Items;
 using Windows.Foundation;
 
@@ -11,7 +12,8 @@ namespace Traysky.Controls;
 /// <summary>
 /// One embedded picture (or GIF, or video thumbnail). It takes its final size from the embed's
 /// aspect ratio before anything has downloaded, and shows a placeholder until the image fades in
-/// over it, so a card doesn't grow when its image arrives.
+/// over it, so a card doesn't grow when its image arrives. The picture is decoded at the size it's
+/// drawn at, not the thumbnail's full width.
 /// </summary>
 public sealed partial class EmbedImageView : UserControl
 {
@@ -23,6 +25,11 @@ public sealed partial class EmbedImageView : UserControl
     /// <summary>Overlays a play button, centered on the picture, for a video thumbnail.</summary>
     public static readonly DependencyProperty IsVideoProperty = DependencyProperty.Register(
         nameof(IsVideo), typeof(bool), typeof(EmbedImageView), new PropertyMetadata(false, OnIsVideoChanged));
+
+    // The picture this view shows (loaded, or waiting for its first arrange), and the logical
+    // width it was decoded at; 0 until it has been asked to decode.
+    private Uri? _thumbnail;
+    private int _decodeWidth;
 
     public EmbedImageView()
     {
@@ -62,22 +69,27 @@ public sealed partial class EmbedImageView : UserControl
     {
         var view = (EmbedImageView)d;
 
-        // Setting UriSource to the URI it already has doesn't reload, so ImageOpened never fires
-        // to fade the picture back in. Leave it as is; the size may still need updating.
+        // The same picture again (a card rebound to its own post): keep it showing rather than
+        // fading it out and back in. The size may still need updating.
         Uri? thumbnail = (e.NewValue as EmbedImage)?.Thumbnail;
-        if (thumbnail is not null && thumbnail == view.Bitmap.UriSource)
+        if (thumbnail is not null && thumbnail == view._thumbnail)
         {
             view.InvalidateMeasure();
             return;
         }
 
-        // ItemsRepeater recycles these, so a new item starts from the placeholder again rather
-        // than briefly showing the previous post's picture.
+        // EmbedImageGrid reuses these, so a new item starts from the placeholder again rather
+        // than briefly showing the previous post's picture. Clearing the source frees the old
+        // picture's decoded pixels now; the new one is decoded on the next arrange, at the size
+        // it's drawn at.
         ((Storyboard)view.Resources["FadeIn"]).Stop();
         view.Picture.Opacity = 0;
         view.Placeholder.Opacity = 1;
-        view.Bitmap.UriSource = thumbnail;
+        view.Bitmap.UriSource = null;
+        view._thumbnail = thumbnail;
+        view._decodeWidth = 0;
         view.InvalidateMeasure();
+        view.InvalidateArrange();
     }
 
     protected override Size MeasureOverride(Size availableSize)
@@ -100,6 +112,28 @@ public sealed partial class EmbedImageView : UserControl
         Size size = new(width, height);
         base.MeasureOverride(size);
         return size;
+    }
+
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        // First arrange with a picture: decode it at the width it's drawn at. A slot that later
+        // grows (the popup resized wider) decodes again, larger, instead of stretching a small
+        // decode. Changing DecodePixelWidth re-decodes a loaded picture on its own.
+        if (_thumbnail is not null && finalSize.Width > 0 && finalSize.Height > 0)
+        {
+            int drawn = EmbedImageLayoutPolicy.DrawnWidth(finalSize.Width, finalSize.Height, Item?.AspectRatio ?? 0);
+            int width = EmbedImageLayoutPolicy.DecodeWidth(drawn, _decodeWidth);
+            if (width != _decodeWidth)
+            {
+                bool firstDecode = _decodeWidth == 0;
+                _decodeWidth = width;
+                Bitmap.DecodePixelWidth = width;
+                if (firstDecode)
+                    Bitmap.UriSource = _thumbnail;
+            }
+        }
+
+        return base.ArrangeOverride(finalSize);
     }
 
     private void Picture_ImageOpened(object sender, RoutedEventArgs e) =>

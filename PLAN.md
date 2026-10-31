@@ -85,6 +85,19 @@ only ~7.6 MB; nearly all of the footprint was native (XAML, composition, media, 
   idunno's JSON to work without reflection-based serialization, which is why the idunno
   assemblies are trimmer-rooted today.
 
+**2026-10-26: embed image pass.** Two dumps taken while scrolling the timeline held 1.2 GB
+private; the managed heap was ~20 MB. ~1 GB was decoded 640 px-wide BGRA pictures: 874 copies of
+just 5 distinct images, one of them 230 times. Each embed's `ItemsRepeater`, nested in the
+`ListView`, virtualized its pictures against the list's viewport and re-realized them as a card
+scrolled near the edge; the code-built element factory made a new `EmbedImageView` (and decode)
+every time and never reused the recycled one, which stayed parented off-screen, still decoded.
+- `EmbedImageGrid` replaces both repeaters: a plain panel holding at most one `EmbedImageView`
+  per picture it has ever shown (4 for a Bluesky post), repointed when the card is reused, and
+  releasing its pictures when it leaves the tree. Layout matches the old `UniformGridLayout`
+  (`EmbedImageLayoutPolicy`).
+- Pictures decode at the width they're drawn at (`DecodePixelType="Logical"`, set on first
+  arrange) instead of a fixed 640 physical px, and decode again larger if the slot grows.
+
 ---
 
 ## 1. Stack

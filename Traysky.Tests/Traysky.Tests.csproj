@@ -76,6 +76,7 @@
     <Compile Include="..\Traysky\Services\StarterPackPolicy.cs" Link="Services\StarterPackPolicy.cs" />
     <Compile Include="..\Traysky\Services\ChatNotificationPreferencePolicy.cs" Link="Services\ChatNotificationPreferencePolicy.cs" />
     <Compile Include="..\Traysky\Services\ThreadFlattenPolicy.cs" Link="Services\ThreadFlattenPolicy.cs" />
+    <Compile Include="..\Traysky\Services\EmbedImageLayoutPolicy.cs" Link="Services\EmbedImageLayoutPolicy.cs" />
   </ItemGroup>
 
 </Project>

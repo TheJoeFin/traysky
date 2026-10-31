@@ -39,7 +39,8 @@
             Opacity="0"
             Stretch="Uniform">
             <Image.Source>
-                <BitmapImage x:Name="Bitmap" DecodePixelWidth="640" />
+                <!--  DecodePixelWidth is set in code, once the size the picture is drawn at is known.  -->
+                <BitmapImage x:Name="Bitmap" DecodePixelType="Logical" />
             </Image.Source>
         </Image>
         <Border
