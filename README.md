@@ -68,7 +68,9 @@ Bump `Identity.Version` in `Traysky\Package.appxmanifest` above the last publish
 then commit and push before running. The script builds both architectures, embeds an identical
 update feed in each, creates and signs one `.msixbundle`, and verifies its identities,
 architectures, feed, block maps and framework dependencies before creating a **draft** release.
-Publish the draft as a non-pre-release to advance the stable update feed. `-SkipRelease`
+Publish the draft as a non-pre-release to advance the stable update feed, without changing its
+tag, then run `.\build-msix-for-gh.ps1 -VerifyPublished` to check that the stable
+`latest/download` link serves this version and every address in the feed downloads. `-SkipRelease`
 builds and signs locally without creating a tag or release; `-Prerelease` does not advance
 the stable feed.
 
