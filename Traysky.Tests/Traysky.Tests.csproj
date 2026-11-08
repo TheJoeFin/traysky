@@ -68,6 +68,7 @@
     <Compile Include="..\Traysky\Services\ActivitySubscriptionPolicy.cs" Link="Services\ActivitySubscriptionPolicy.cs" />
     <Compile Include="..\Traysky\Services\SavedFeedPolicy.cs" Link="Services\SavedFeedPolicy.cs" />
     <Compile Include="..\Traysky\Services\ProfileEditPolicy.cs" Link="Services\ProfileEditPolicy.cs" />
+    <Compile Include="..\Traysky\Services\LiveStatusPolicy.cs" Link="Services\LiveStatusPolicy.cs" />
     <Compile Include="..\Traysky\Services\GroupChatPolicy.cs" Link="Services\GroupChatPolicy.cs" />
     <Compile Include="..\Traysky\Services\MuteTargetPolicy.cs" Link="Services\MuteTargetPolicy.cs" />
     <Compile Include="..\Traysky\Services\ProfileHydrationPolicy.cs" Link="Services\ProfileHydrationPolicy.cs" />

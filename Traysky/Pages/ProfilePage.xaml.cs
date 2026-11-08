@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using System;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
@@ -49,6 +50,7 @@ public sealed partial class ProfilePage : Page
         ViewModel.Dialogs = new XamlDialogService(() => XamlRoot);
         InitializeComponent();
         Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
@@ -68,8 +70,37 @@ public sealed partial class ProfilePage : Page
         _ = ViewModel.SelectTabAsync(SelectedBarTab);
     }
 
+    /// <summary>Ticks only while a live status is on screen, to update "time left" and drop it at expiry.</summary>
+    private DispatcherTimer? _liveTimer;
+
+    private void UpdateLiveTimer()
+    {
+        if (ViewModel.IsLive && IsLoaded)
+        {
+            if (_liveTimer is not null)
+                return;
+
+            _liveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+            _liveTimer.Tick += (_, _) => ViewModel.RefreshLive();
+            _liveTimer.Start();
+        }
+        else if (_liveTimer is not null)
+        {
+            _liveTimer.Stop();
+            _liveTimer = null;
+        }
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e) => UpdateLiveTimer();
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(ProfileViewModel.IsLive))
+        {
+            UpdateLiveTimer();
+            return;
+        }
+
         if (e.PropertyName != nameof(ProfileViewModel.SelectedTab))
             return;
 
@@ -206,6 +237,7 @@ public sealed partial class ProfilePage : Page
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        UpdateLiveTimer();
         if (_scrollViewer is not null)
             return;
 

@@ -437,27 +437,56 @@ warnings); **no real upload exercised**, so the multipart route is unproven agai
 Placement: **Profile** (display others' live state) + **Compose/Profile menu** (set your own),
 because it is account state, not a feed item.
 
-- [ ] 8.1 Read XML docs; record: record shape, expiry semantics, allowed link domains, whether
+- [x] 8.1 Read XML docs; record: record shape, expiry semantics, allowed link domains, whether
       `ProfileViewDetailed.Status` already surfaces other users' status in lists/profiles.
-- [ ] 8.2 `LiveStatusPolicy` (pure): expiry → active/expired, remaining-time text, URL/domain
+- [x] 8.2 `LiveStatusPolicy` (pure): expiry → active/expired, remaining-time text, URL/domain
       validation, duration presets (30 m / 1 h / 2 h / 4 h), "is-live" badge decision. Tests incl.
       boundary at expiry, missing expiry, invalid URL.
-- [ ] 8.3 `LiveStatusService`: `GetOwnAsync`, `GoLiveAsync(url, duration)`, `ExtendAsync`
+- [x] 8.3 `LiveStatusService`: `GetOwnAsync`, `GoLiveAsync(url, duration)`, `ExtendAsync`
       (`UpdateStatus`), `EndAsync` (`DeleteStatus`). Cache own status; re-check on expiry timer
-      (single timer, stop when none — respect idle-memory rules).
-- [ ] 8.4 UI (own): "Go live" entry in the profile overflow / account menu → small dialog (link
+      (single timer, stop when none — respect idle-memory rules). **No `GetOwnAsync`/cache** (see Notes).
+- [x] 8.4 UI (own): "Go live" entry in the profile overflow / account menu → small dialog (link
       + duration) → shows a "LIVE · 1 h 12 m left · End" strip on own profile.
-- [ ] 8.5 UI (others): LIVE badge on avatar + button to open the stream link in the default
+- [x] 8.5 UI (others): LIVE badge on avatar + button to open the stream link in the default
       browser (reuse the external-link policy `ExternalMediaPolicy`/`LinkCardPolicy` so the same
-      safe-link rules apply) on `ProfilePage` and follow-list/search rows when status present.
+      safe-link rules apply) on `ProfilePage` **only**; follow-list/search rows not done (see Notes).
 - [ ] 8.6 Optional: tray tooltip/badge hint while *you* are live; Settings toggle to hide others'
-      live badges.
-- [ ] 8.7 Verification gate.
+      live badges. **Skipped** — optional, and a tray hint would need background work the tray
+      icon displays (CLAUDE.md requires a documented reason).
+- [x] 8.7 Verification gate.
 
 Done when: go live with a Twitch/YouTube link → badge shows on your profile (and in the official
 client), extend and end both work, expired status disappears without restart.
 
-Notes:
+Notes: 2026-11-08 — Built + unit-tested (496 pass, 0 build errors; no warnings from the new files —
+the 23 `CsWinRT1032` warnings a full rebuild prints are all in older files); UI and server behavior
+**not exercised** (no real account or preview sample for a live status).
+- 8.1 findings (SDK 7.0.1): `CreateLiveStatus(Uri uri, string title, string description, Blob? preview,
+  int? durationMinutes)` writes the record; `GetStatus()` returns the own record (`Value.DurationMinutes`,
+  `Value.CreatedAt`); `UpdateStatus(record)`; `DeleteStatus()` (no arguments, own status only). Other
+  people's status arrives as `StatusView` on `ProfileViewDetailed.Status` (`Status` value, `Embed` as
+  `EmbeddedExternalView`, `ExpiresAt`, `IsActive`, `IsDisabled`). Expiry is `CreatedAt + DurationMinutes`;
+  the server's `IsActive` is only present when an expiry was set. The allowed-domain list is a server
+  rule the docs don't state, so the dialog accepts any http(s) link with a dotted host and shows the
+  server's message if it refuses.
+- 8.2 `LiveStatusPolicy` (+ `LiveStatusInfo`), linked into `Traysky.Tests` (16 tests). A missing expiry or
+  missing `IsActive` counts as live; expiry is exclusive. Links go through `BlueskyLinks.TryParseWebUri`
+  (so `file:`/`javascript:` are dropped and nothing unsafe can be opened); `ExternalMediaPolicy` /
+  `LinkCardPolicy` were not reused since they decide image/link-card questions, not safety.
+- 8.3 `LiveStatusService` is static like `ProfileEditService`. **No own-status cache or global timer:** the
+  profile page already loads the status with the profile, so `ProfileViewModel` holds it and the page runs
+  one 30 s `DispatcherTimer` only while a live status is shown (stopped on unload or expiry). Extend reads
+  `GetStatus`, then sets `DurationMinutes` so the end is old end (or now) + 30 m, counted from `CreatedAt`.
+  `description` is sent empty and no preview image is attached.
+- 8.4/8.5 `ProfilePage`: "Go live" button in the own-profile button row (hidden while live) → `LiveStatusDialogs`
+  (link, optional title, 30 m/1 h/2 h/4 h) via new `IDialogService.AskGoLiveAsync`. A red LIVE strip under the
+  handle shows title · time left, with **Watch** (anyone, opens the link in the default browser), and
+  **+30 m** / **End** (own profile only). It is a strip, not a badge on the avatar.
+- Not done: LIVE marks on follower/search/notification rows (`ActorItem` is built from `ProfileViewBasic`,
+  which also carries `Status`, so it's a small mapper change plus a template edit per list — left out to keep
+  this chunk to the profile). Nothing yet reads the status after a sign-in switch other than reloading the page.
+- Unverified: that `CreateLiveStatus` with an empty description is accepted; that `UpdateStatus` keeps the
+  embed intact; whether the official client shows the badge for a status created this way.
 
 ---
 
@@ -479,4 +508,4 @@ visibility/notification/conversation declarations, `SendMessageBatch`, `GetEmbed
 | 5 Starter packs | ☑ (UI/server not exercised; 5.5 skipped) | 2026-10-17 | 368 pass | 0 errors, baseline warnings |
 | 6 Thread V2 | ☑ (UI/server not exercised; no v2 gap pagination exists) | 2026-10-17 | 384 pass | 0 errors, baseline warnings |
 | 7 Uploads/cancel | ☑ (UI/server not exercised; 7B.4 skipped) | 2026-10-17 | 411 pass | 0 errors, baseline warnings |
-| 8 Live status | ☐ | | | |
+| 8 Live status | ☑ (UI/server not exercised; profile page only, 8.6 skipped) | 2026-11-08 | 496 pass | 0 errors, no new warnings |

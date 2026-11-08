@@ -156,6 +156,7 @@ public sealed partial class ProfileViewModel : DialogViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanFollow))]
     [NotifyPropertyChangedFor(nameof(CanShowSimilar))]
+    [NotifyPropertyChangedFor(nameof(CanGoLive))]
     public partial bool IsSelf { get; private set; }
 
     [ObservableProperty]
@@ -178,6 +179,7 @@ public sealed partial class ProfileViewModel : DialogViewModel
     [NotifyPropertyChangedFor(nameof(CanFollow))]
     [NotifyPropertyChangedFor(nameof(CanShowSimilar))]
     [NotifyPropertyChangedFor(nameof(ShowEmpty))]
+    [NotifyPropertyChangedFor(nameof(CanGoLive))]
     public partial bool HasLoaded { get; private set; }
 
     /// <summary>Show "Message": this session has DM access and their chat settings would let us in.</summary>
@@ -191,6 +193,36 @@ public sealed partial class ProfileViewModel : DialogViewModel
 
     private string? _followUri;
     private string? _blockUri;
+    private LiveStatusInfo? _live;
+
+    /// <summary>The account has a live status that hasn't run out. The page ticks <see cref="RefreshLive"/> while this is true.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LiveText))]
+    [NotifyPropertyChangedFor(nameof(CanGoLive))]
+    [NotifyPropertyChangedFor(nameof(CanWatchLive))]
+    public partial bool IsLive { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanGoLive))]
+    public partial bool IsLiveBusy { get; private set; }
+
+    /// <summary>"Title · 1 h 12 m left" for the LIVE strip.</summary>
+    public string LiveText
+    {
+        get
+        {
+            if (_live is not { } live)
+                return string.Empty;
+            string left = LiveStatusPolicy.RemainingText(live.ExpiresAt, DateTimeOffset.UtcNow);
+            return left.Length == 0 ? live.Title : $"{live.Title} · {left}";
+        }
+    }
+
+    /// <summary>Own profile, not live yet.</summary>
+    public bool CanGoLive => IsSelf && !IsLive && !IsLiveBusy && HasLoaded;
+
+    /// <summary>There is a safe link to open the stream with.</summary>
+    public bool CanWatchLive => IsLive && _live?.Link is not null;
 
     public string HandleDisplay => Handle.Length > 0 ? "@" + Handle : string.Empty;
 
@@ -231,6 +263,7 @@ public sealed partial class ProfileViewModel : DialogViewModel
         _loadedTabs.Clear();
         HasLoaded = false;
         Labels = [];
+        SetLive(null);
 
         // Show what we know before the network answers.
         if (didOrHandle.StartsWith("did:", StringComparison.OrdinalIgnoreCase))
@@ -297,7 +330,8 @@ public sealed partial class ProfileViewModel : DialogViewModel
                 ? ActivitySubscriptionPolicy.FromFlags(sub.Post, sub.Reply)
                 : ActivitySubscriptionLevel.Off;
             OnPropertyChanged(nameof(ShowBell));
-            CanMessage = ChatService.Instance.CanUseChat
+            SetLive(LiveStatusService.FromView(p.Status));
+            CanMessage =ChatService.Instance.CanUseChat
                 && ChatAccessPolicy.CanOfferMessage(IsSelf, ToIncomingChatSetting(p.Associated?.Chat?.AllowIncoming), FollowsYou);
 
             if (!IsSelf && p.Viewer?.KnownFollowers is { Count: > 0 } known)
@@ -736,6 +770,90 @@ public sealed partial class ProfileViewModel : DialogViewModel
             sent ? "Report sent" : "Couldn't send report",
             sent ? "Thanks. Bluesky's moderators will take a look." : "The report didn't go through. Try again in a moment.");
     }
+
+    private void SetLive(LiveStatusInfo? live)
+    {
+        _live = live;
+        IsLive = live is not null;
+        OnPropertyChanged(nameof(LiveText));
+        OnPropertyChanged(nameof(CanWatchLive));
+    }
+
+    /// <summary>Re-reads the clock: updates the time left and drops the status once it has run out.</summary>
+    public void RefreshLive()
+    {
+        if (_live is { } live && !LiveStatusPolicy.IsLive(LiveStatusPolicy.LiveValue, live.ExpiresAt, null, null, DateTimeOffset.UtcNow))
+            SetLive(null);
+        else
+            OnPropertyChanged(nameof(LiveText));
+    }
+
+    [RelayCommand]
+    private async Task GoLive()
+    {
+        if (!CanGoLive || await Dialogs.AskGoLiveAsync() is not { } ask)
+            return;
+
+        IsLiveBusy = true;
+        try
+        {
+            (LiveStatusInfo? info, string? error) = await LiveStatusService.GoLiveAsync(ask.Link, ask.Title, ask.Minutes);
+            if (info is null)
+                await Dialogs.ShowMessageAsync("Couldn't go live", error ?? TryAgainText);
+            else
+                SetLive(info);
+        }
+        finally
+        {
+            IsLiveBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExtendLive()
+    {
+        if (_live is not { } live || !IsSelf || IsLiveBusy)
+            return;
+
+        IsLiveBusy = true;
+        try
+        {
+            (LiveStatusInfo? info, string? error) = await LiveStatusService.ExtendAsync(live, LiveStatusPolicy.ExtendMinutes);
+            if (info is null)
+                await Dialogs.ShowMessageAsync("Couldn't extend", error ?? TryAgainText);
+            else
+                SetLive(info);
+        }
+        finally
+        {
+            IsLiveBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task EndLive()
+    {
+        if (_live is null || !IsSelf || IsLiveBusy)
+            return;
+
+        IsLiveBusy = true;
+        try
+        {
+            if (await LiveStatusService.EndAsync())
+                SetLive(null);
+            else
+                await Dialogs.ShowMessageAsync("Couldn't end the stream", TryAgainText);
+        }
+        finally
+        {
+            IsLiveBusy = false;
+        }
+    }
+
+    /// <summary>Opens the stream in the default browser (http(s) links only; see <see cref="LiveStatusPolicy.TryNormalizeLink"/>).</summary>
+    [RelayCommand]
+    private Task WatchLive() =>
+        _live?.Link is { } link ? RichTextBuilder.OpenAsync(link.ToString()) : Task.CompletedTask;
 
     [RelayCommand]
     private Task Retry() => _actor is null ? Task.CompletedTask : LoadAsync(_actor);

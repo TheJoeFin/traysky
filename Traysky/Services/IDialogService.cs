@@ -1,4 +1,5 @@
 using idunno.Bluesky.Moderation;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Traysky.ViewModels.Items;
@@ -31,6 +32,9 @@ public interface IDialogService
 
     /// <summary>Asks for a list's name, description and (for a new list) purpose; null when cancelled.</summary>
     Task<(string Name, string Description, ListKind Kind)?> AskListAsync(ListItem? existing);
+
+    /// <summary>Asks for a stream link, an optional title and how long to stay live; null when cancelled.</summary>
+    Task<(Uri Link, string Title, int Minutes)?> AskGoLiveAsync();
 
     Task<bool> ConfirmDeleteListAsync(string name);
 

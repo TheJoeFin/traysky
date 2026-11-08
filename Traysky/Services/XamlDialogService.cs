@@ -48,6 +48,11 @@ public sealed class XamlDialogService : IDialogService
             ? ListDialogs.AskListAsync(root, existing)
             : Task.FromResult<(string Name, string Description, ListKind Kind)?>(null);
 
+    public Task<(Uri Link, string Title, int Minutes)?> AskGoLiveAsync() =>
+        _root() is { } root
+            ? LiveStatusDialogs.AskGoLiveAsync(root)
+            : Task.FromResult<(Uri Link, string Title, int Minutes)?>(null);
+
     public Task<bool> ConfirmDeleteListAsync(string name) =>
         _root() is { } root ? ListDialogs.ConfirmDeleteAsync(root, name) : Task.FromResult(false);
 

@@ -316,6 +316,16 @@
                             Orientation="Horizontal"
                             Spacing="6"
                             Visibility="{x:Bind VisibleUnlessContained(ViewModel.IsSelf, IsContained), Mode=OneWay}">
+                            <Button
+                                AutomationProperties.AutomationId="GoLiveButton"
+                                Command="{x:Bind ViewModel.GoLiveCommand}"
+                                ToolTipService.ToolTip="Go live"
+                                Visibility="{x:Bind ViewModel.CanGoLive, Mode=OneWay}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon FontSize="14" Glyph="&#xE7F7;" />
+                                    <TextBlock Text="Go live" />
+                                </StackPanel>
+                            </Button>
                             <Button Command="{x:Bind ViewModel.NewListCommand}" ToolTipService.ToolTip="New list">
                                 <FontIcon FontSize="14" Glyph="&#xE8FD;" />
                             </Button>
@@ -354,6 +364,54 @@
                                 <TextBlock FontSize="11" Text="Follows you" />
                             </Border>
                         </StackPanel>
+
+                        <!--  Live status: LIVE badge, what and how long, Watch (anyone) or Extend / End (you).  -->
+                        <Border
+                            Margin="0,4,0,0"
+                            Padding="8,6"
+                            HorizontalAlignment="Left"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                            CornerRadius="4"
+                            Visibility="{x:Bind ViewModel.IsLive, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border
+                                    Padding="6,1"
+                                    VerticalAlignment="Center"
+                                    Background="{ThemeResource SystemFillColorCriticalBrush}"
+                                    CornerRadius="4">
+                                    <TextBlock
+                                        FontSize="11"
+                                        FontWeight="Bold"
+                                        Foreground="White"
+                                        Text="LIVE" />
+                                </Border>
+                                <TextBlock
+                                    MaxWidth="220"
+                                    VerticalAlignment="Center"
+                                    Text="{x:Bind ViewModel.LiveText, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <Button
+                                    Padding="8,2"
+                                    AutomationProperties.AutomationId="WatchLiveButton"
+                                    Command="{x:Bind ViewModel.WatchLiveCommand}"
+                                    Content="Watch"
+                                    Visibility="{x:Bind ViewModel.CanWatchLive, Mode=OneWay}" />
+                                <Button
+                                    Padding="8,2"
+                                    AutomationProperties.AutomationId="ExtendLiveButton"
+                                    Command="{x:Bind ViewModel.ExtendLiveCommand}"
+                                    Content="+30 m"
+                                    IsEnabled="{x:Bind helpers:BindHelpers.Not(ViewModel.IsLiveBusy), Mode=OneWay}"
+                                    Visibility="{x:Bind ViewModel.IsSelf, Mode=OneWay}" />
+                                <Button
+                                    Padding="8,2"
+                                    AutomationProperties.AutomationId="EndLiveButton"
+                                    Command="{x:Bind ViewModel.EndLiveCommand}"
+                                    Content="End"
+                                    IsEnabled="{x:Bind helpers:BindHelpers.Not(ViewModel.IsLiveBusy), Mode=OneWay}"
+                                    Visibility="{x:Bind ViewModel.IsSelf, Mode=OneWay}" />
+                            </StackPanel>
+                        </Border>
 
                         <!--  Community labels (from the labelers this account subscribes to) and any
                               the account put on itself.  -->
