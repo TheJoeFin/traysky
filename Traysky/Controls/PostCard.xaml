@@ -75,6 +75,8 @@
                 VerticalAlignment="Top"
                 DisplayName="{x:Bind Post.AuthorDisplayName, Mode=OneWay}"
                 ProfilePicture="{x:Bind helpers:BindHelpers.ImageFromUri(Post.AvatarUri), Mode=OneWay}"
+                AutomationProperties.AutomationId="PostAuthorAvatar"
+                AutomationProperties.Name="View profile"
                 Tapped="Avatar_Tapped"
                 ToolTipService.ToolTip="View profile" />
             <Rectangle
@@ -114,6 +116,8 @@
                 Padding="4,2"
                 VerticalAlignment="Center"
                 x:Load="{x:Bind Post.HasAuthorLabels, Mode=OneWay, FallbackValue=False}"
+                AutomationProperties.AutomationId="AuthorLabelsButton"
+                AutomationProperties.Name="Labels on this account"
                 Background="Transparent"
                 BorderThickness="0"
                 ToolTipService.ToolTip="{x:Bind Post.AuthorLabelsToolTip, Mode=OneWay}">
@@ -205,6 +209,8 @@
             </Grid.RowDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="2">
                 <Button
+                    AutomationProperties.AutomationId="ReplyButton"
+                    AutomationProperties.Name="Reply"
                     Click="Reply_Click"
                     Style="{StaticResource PostActionButtonStyle}"
                     ToolTipService.ToolTip="Reply">
@@ -213,7 +219,11 @@
                         <TextBlock Text="{x:Bind Post.ReplyCountDisplay, Mode=OneWay}" />
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource PostActionButtonStyle}" ToolTipService.ToolTip="Repost or quote">
+                <Button
+                    AutomationProperties.AutomationId="RepostButton"
+                    AutomationProperties.Name="Repost or quote"
+                    Style="{StaticResource PostActionButtonStyle}"
+                    ToolTipService.ToolTip="Repost or quote">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <FontIcon
                             FontSize="14"
@@ -237,6 +247,8 @@
                     </Button.Flyout>
                 </Button>
                 <Button
+                    AutomationProperties.AutomationId="LikeButton"
+                    AutomationProperties.Name="Like"
                     Click="Like_Click"
                     Style="{StaticResource PostActionButtonStyle}"
                     ToolTipService.ToolTip="Like">
@@ -256,6 +268,8 @@
                 Spacing="2">
                 <!--  Only on the post a thread page is about: who liked / reposted it.  -->
                 <Button
+                    AutomationProperties.AutomationId="EngagementButton"
+                    AutomationProperties.Name="Likes, reposts and quotes"
                     Click="Engagement_Click"
                     Style="{StaticResource PostActionButtonStyle}"
                     ToolTipService.ToolTip="Likes, reposts and quotes"
@@ -263,6 +277,8 @@
                     <FontIcon FontSize="14" Glyph="&#xE946;" />
                 </Button>
                 <Button
+                    AutomationProperties.AutomationId="BookmarkButton"
+                    AutomationProperties.Name="{x:Bind Post.BookmarkLabel, Mode=OneWay}"
                     Click="Bookmark_Click"
                     Style="{StaticResource PostActionButtonStyle}"
                     ToolTipService.ToolTip="{x:Bind Post.BookmarkLabel, Mode=OneWay}">
@@ -277,6 +293,8 @@
                         Stretch="Uniform" />
                 </Button>
                 <Button
+                    AutomationProperties.AutomationId="MoreButton"
+                    AutomationProperties.Name="More"
                     Style="{StaticResource PostActionButtonStyle}"
                     ToolTipService.ToolTip="More">
                     <FontIcon FontSize="14" Glyph="&#xE712;" />
@@ -303,60 +321,60 @@
                                     <FontIcon Glyph="&#xE77B;" />
                                 </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
-                            <MenuFlyoutSeparator x:Name="DeleteSeparator" />
+                            <MenuFlyoutSeparator Visibility="{x:Bind Actions.ShowDeleteSeparator, Mode=OneWay}" />
                             <MenuFlyoutItem
-                                x:Name="MuteThreadItem"
-                                Click="MuteThread_Click"
-                                Text="Mute thread">
+                                Command="{x:Bind Actions.MuteThreadCommand}"
+                                Text="{x:Bind Actions.MuteThreadLabel, Mode=OneWay}"
+                                Visibility="{x:Bind Actions.ShowMuteThread, Mode=OneWay}">
                                 <MenuFlyoutItem.Icon>
                                     <FontIcon Glyph="&#xE74F;" />
                                 </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                             <MenuFlyoutItem
-                                x:Name="InteractionItem"
-                                Click="InteractionSettings_Click"
-                                Text="Reply and quote settings…">
+                                Command="{x:Bind Actions.EditInteractionSettingsCommand}"
+                                Text="Reply and quote settings…"
+                                Visibility="{x:Bind Actions.ShowInteractionSettings, Mode=OneWay}">
                                 <MenuFlyoutItem.Icon>
                                     <FontIcon Glyph="&#xE72E;" />
                                 </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                             <MenuFlyoutItem
-                                x:Name="DetachQuoteItem"
-                                Click="DetachQuote_Click"
-                                Text="Detach my post from this quote">
+                                Command="{x:Bind Actions.DetachQuoteCommand}"
+                                Text="Detach my post from this quote"
+                                Visibility="{x:Bind Actions.ShowDetachQuote, Mode=OneWay}">
                                 <MenuFlyoutItem.Icon>
                                     <FontIcon Glyph="&#xE71B;" />
                                 </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                             <MenuFlyoutItem
-                                x:Name="DeleteItem"
-                                Click="DeletePost_Click"
-                                Text="Delete post">
+                                Command="{x:Bind Actions.DeletePostCommand}"
+                                Text="Delete post"
+                                Visibility="{x:Bind Actions.ShowDelete, Mode=OneWay}">
                                 <MenuFlyoutItem.Icon>
                                     <FontIcon Glyph="&#xE74D;" />
                                 </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
-                            <MenuFlyoutSeparator x:Name="ModerationSeparator" />
+                            <MenuFlyoutSeparator Visibility="{x:Bind Actions.ShowModeration, Mode=OneWay}" />
                             <MenuFlyoutItem
-                                x:Name="MuteItem"
-                                Click="MuteAuthor_Click"
-                                Text="Mute account">
+                                Command="{x:Bind Actions.MuteAuthorCommand}"
+                                Text="{x:Bind Actions.MuteAuthorLabel, Mode=OneWay}"
+                                Visibility="{x:Bind Actions.ShowModeration, Mode=OneWay}">
                                 <MenuFlyoutItem.Icon>
                                     <FontIcon Glyph="&#xE74F;" />
                                 </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                             <MenuFlyoutItem
-                                x:Name="BlockItem"
-                                Click="BlockAuthor_Click"
-                                Text="Block account">
+                                Command="{x:Bind Actions.BlockAuthorCommand}"
+                                Text="{x:Bind Actions.BlockAuthorLabel, Mode=OneWay}"
+                                Visibility="{x:Bind Actions.ShowModeration, Mode=OneWay}">
                                 <MenuFlyoutItem.Icon>
                                     <FontIcon Glyph="&#xE733;" />
                                 </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                             <MenuFlyoutItem
-                                x:Name="ReportItem"
-                                Click="ReportPost_Click"
-                                Text="Report post">
+                                Command="{x:Bind Actions.ReportPostCommand}"
+                                Text="Report post"
+                                Visibility="{x:Bind Actions.ShowModeration, Mode=OneWay}">
                                 <MenuFlyoutItem.Icon>
                                     <FontIcon Glyph="&#xE7C1;" />
                                 </MenuFlyoutItem.Icon>
