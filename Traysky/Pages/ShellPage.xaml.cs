@@ -8,6 +8,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Numerics;
+using System.Threading.Tasks;
 using Traysky.Models;
 using Traysky.Services;
 using Traysky.ViewModels;
@@ -38,7 +39,7 @@ public sealed partial class ShellPage : Page
     private ShellDestination? _pendingDestination;
     private Action? _pendingThen;
 
-    /// <summary>Counts <see cref="NavigateTo"/> calls, so <see cref="ResetNavigation"/> can tell it was overtaken.</summary>
+    /// <summary>Counts <see cref="NavigateTo"/> calls, so <see cref="ResetNavigationAsync"/> can tell it was overtaken.</summary>
     private int _navigationRequests;
 
     /// <summary>The video playing in the overlay, so it can be handed to the pop-out window.</summary>
@@ -58,7 +59,7 @@ public sealed partial class ShellPage : Page
         ImageViewerService.ImageRequested += OnImageRequested;
         VideoViewerService.VideoRequested += OnVideoRequested;
 
-        KeyboardAccelerators.Add(Accelerator(VirtualKey.R, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; Refresh(); }));
+        KeyboardAccelerators.Add(Accelerator(VirtualKey.R, VirtualKeyModifiers.Control, (sender, e) => { e.Handled = true; _ = RefreshAsync(); }));
         KeyboardAccelerators.Add(Accelerator(VirtualKey.Number1, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Home); }));
         KeyboardAccelerators.Add(Accelerator(VirtualKey.Number2, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Notifications); }));
         KeyboardAccelerators.Add(Accelerator(VirtualKey.Number3, VirtualKeyModifiers.Control, (_, e) => { e.Handled = true; NavigateTo(ShellDestination.Messages); }));
@@ -141,7 +142,7 @@ public sealed partial class ShellPage : Page
         UpdateTitleBarIcon();
 
         _navigation.Frame = ContentFrame;
-        ResetNavigation();
+        _ = ResetNavigationAsync();
 
         if (_pendingDestination is ShellDestination pending)
         {
@@ -155,7 +156,7 @@ public sealed partial class ShellPage : Page
     private void OnSessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(BlueskySessionService.IsSignedIn) or nameof(BlueskySessionService.IsRestoring))
-            ResetNavigation();
+            _ = ResetNavigationAsync();
     }
 
     /// <summary>
@@ -189,7 +190,7 @@ public sealed partial class ShellPage : Page
     /// out, otherwise the timeline, on whatever feed was last selected. Called whenever the
     /// popup is shown, so it never reopens deep in Settings or Notifications.
     /// </summary>
-    public async void ResetNavigation()
+    public async Task ResetNavigationAsync()
     {
         CloseImageOverlay();
         CloseVideoOverlay();
@@ -353,7 +354,7 @@ public sealed partial class ShellPage : Page
         _navigation.GoBack();
     }
 
-    private async void Refresh()
+    private async Task RefreshAsync()
     {
         if (!BlueskySessionService.Instance.IsSignedIn)
             return;

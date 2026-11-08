@@ -186,7 +186,7 @@ public sealed partial class TrayPopupWindow : WindowEx
         EnsureShellPage();
 
         // Back to the root on each open, so the popup never reopens deep in a thread.
-        _shellPage?.ResetNavigation();
+        _ = _shellPage?.ResetNavigationAsync();
 
         // Position before showing so the window never flashes at a stale location.
         WindowPlacementService.PositionWindowNearAnchor(this, PopupWidth, PopupHeight);
