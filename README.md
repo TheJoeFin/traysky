@@ -31,6 +31,8 @@ on the tray plumbing of [Traydio](https://github.com/TheJoeFin/Traydio).
 
 ## Install and automatic updates
 
+[<img src="images/MSIX.svg" alt="Install Traysky (MSIX)" width="212">](https://github.com/TheJoeFin/traysky/releases/latest/download/Traysky.appinstaller)
+
 For GitHub releases, download [Traysky.appinstaller](https://github.com/TheJoeFin/traysky/releases/latest/download/Traysky.appinstaller)
 and open it with Windows App Installer. This link becomes available when the first release
 containing the feed is published. Windows selects x64 or ARM64, installs the matching Windows
