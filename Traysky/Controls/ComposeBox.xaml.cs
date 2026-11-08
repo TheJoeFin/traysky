@@ -444,17 +444,11 @@ public sealed partial class ComposeBox : UserControl
             return;
 
         bool isReply = ViewModel.ReplyTo is not null;
-        IReadOnlyList<ListItem> lists = [];
-        if (!isReply)
-            lists = (PreviewMode.IsEnabled ? PreviewMode.SampleLists() : await ListsService.GetOwnCurationListsAsync()) ?? [];
+        IReadOnlyList<ListItem> lists = await ViewModel.LoadReplyGateListsAsync();
 
         var answer = await Helpers.GateDialogs.AskAsync(root, isReply ? null : ViewModel.ReplySetting, ViewModel.AllowQuotes, lists);
-        if (answer is not { } chosen)
-            return;
-
-        if (chosen.Reply is not null)
-            ViewModel.ReplySetting = chosen.Reply;
-        ViewModel.AllowQuotes = chosen.AllowQuotes;
+        if (answer is { } chosen)
+            ViewModel.ApplyInteractionChoice(chosen.Reply, chosen.AllowQuotes);
     }
 
     // The draft rows live in a flyout, outside the tree an ElementName binding to the root can reach, so they use click handlers.
@@ -500,6 +494,15 @@ public sealed partial class ComposeBox : UserControl
     public double EditorMinHeight(bool expanded, bool pageMode) => pageMode ? 220 : expanded ? 72 : 32;
 
     public double EditorMaxHeight(bool pageMode) => pageMode ? 420 : 160;
+
+    // Action bar: the popup keeps everything on one row; full-page compose moves status/counter/Post to a second row.
+    public int ActionRow(bool pageMode) => pageMode ? 1 : 0;
+
+    public int StatusColumn(bool pageMode) => pageMode ? 0 : 6;
+
+    public int StatusColumnSpan(bool pageMode) => pageMode ? 7 : 1;
+
+    public double ActionRowSpacing(bool pageMode) => pageMode ? 6 : 0;
 
     /// <summary>Only offered while the draft mentions someone.</summary>
     private void UpdateMentionsButton() =>

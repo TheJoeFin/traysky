@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using Microsoft.UI.Xaml;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,9 +28,8 @@ public sealed partial class MessageItem : ObservableObject
     /// <summary>A line from the group itself ("Alice added Bob"), shown centred rather than as a bubble; the line is in <see cref="Text"/>.</summary>
     public bool IsSystem { get; init; }
 
-    public Visibility BubbleVisibility => IsSystem ? Visibility.Collapsed : Visibility.Visible;
-
-    public Visibility SystemVisibility => IsSystem ? Visibility.Visible : Visibility.Collapsed;
+    /// <summary>Everything but a system line is drawn as a bubble.</summary>
+    public bool IsBubble => !IsSystem;
 
     public string Text { get; init; } = string.Empty;
     public IReadOnlyList<TextSegment> Segments { get; init; } = [];
@@ -78,29 +76,23 @@ public sealed partial class MessageItem : ObservableObject
     }
 
     /// <summary>The "..." options button ends every message (react, copy, delete for me); deleted ones have nothing to offer.</summary>
-    public Visibility OptionsButtonVisibility => IsDeleted || IsSystem ? Visibility.Collapsed : Visibility.Visible;
+    public bool ShowOptionsButton => !(IsDeleted || IsSystem);
 
     /// <summary>First message of a burst (see <see cref="ChatThreadPolicy.StartsRun"/>); set by the list
     /// as messages arrive, and can change when older messages are loaded above it.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RunHeaderVisibility), nameof(SenderNameVisibility), nameof(RunMargin))]
+    [NotifyPropertyChangedFor(nameof(ShowSenderName))]
     public partial bool StartsRun { get; set; } = true;
 
     public bool HasText => Text.Length > 0;
     public bool HasEmbed => Embed is not null;
     public bool HasReactions => ReactionsText.Length > 0;
 
-    public HorizontalAlignment Alignment => IsMine ? HorizontalAlignment.Right : HorizontalAlignment.Left;
-
     public string BubbleBrushKey => IsMine ? "AccentFillColorDefaultBrush" : "CardBackgroundFillColorSecondaryBrush";
 
     public string TextBrushKey => IsMine ? "TextOnAccentFillColorPrimaryBrush" : "TextFillColorPrimaryBrush";
 
-    public Visibility RunHeaderVisibility => StartsRun ? Visibility.Visible : Visibility.Collapsed;
-
-    public Visibility SenderNameVisibility => StartsRun && IsInGroup && !IsMine ? Visibility.Visible : Visibility.Collapsed;
-
-    public Thickness RunMargin => StartsRun ? new Thickness(0, 10, 0, 0) : new Thickness(0, 2, 0, 0);
+    public bool ShowSenderName => StartsRun && IsInGroup && !IsMine;
 
     public string TimeText => RelativeTimeFormatter.FormatAbsolute(SentAt);
 

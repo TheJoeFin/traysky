@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
+using System.IO;
 
 namespace Traysky.Helpers;
 
@@ -24,6 +25,38 @@ public static class BindHelpers
 
     /// <summary>PersonPicture wants an ImageSource; the models carry plain Uris.</summary>
     public static ImageSource? ImageFromUri(Uri? uri) => uri is null ? null : new BitmapImage(uri) { DecodePixelWidth = 96 };
+
+    /// <summary>
+    /// Decodes picture bytes the view model holds (an attachment, a chosen avatar) into an
+    /// ImageSource, so the view model never creates a UI type. Null when there are no bytes.
+    /// </summary>
+    public static ImageSource? ImageFromBytes(byte[]? bytes, int decodePixelWidth = 0)
+    {
+        if (bytes is not { Length: > 0 })
+            return null;
+
+        BitmapImage image = new();
+        if (decodePixelWidth > 0)
+            image.DecodePixelWidth = decodePixelWidth;
+        image.SetSource(new MemoryStream(bytes).AsRandomAccessStream());
+        return image;
+    }
+
+    /// <summary>A compose attachment's thumbnail: videos have none (the view shows a glyph).</summary>
+    public static ImageSource? AttachmentThumbnail(bool isVideo, byte[] bytes) => isVideo ? null : ImageFromBytes(bytes);
+
+    /// <summary>The profile editor's preview: a chosen picture wins over the account's current one.</summary>
+    public static ImageSource? ProfileImagePreview(Uri? currentUri, byte[]? chosenBytes) =>
+        chosenBytes is not null ? ImageFromBytes(chosenBytes) : ImageFromUri(currentUri);
+
+    /// <summary>Own chat messages sit on the right, others' on the left.</summary>
+    public static HorizontalAlignment AlignEnd(bool isMine) => isMine ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+
+    /// <summary>A little more air above the first message of a run.</summary>
+    public static Thickness RunMargin(bool startsRun) => startsRun ? new Thickness(0, 10, 0, 0) : new Thickness(0, 2, 0, 0);
+
+    /// <summary>Thread replies indent 16px per level of depth.</summary>
+    public static Thickness ThreadIndent(int depth) => new(depth * 16, 0, 0, 0);
 
     public static bool Not(bool value) => !value;
 

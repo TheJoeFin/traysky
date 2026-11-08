@@ -1,6 +1,4 @@
-using Microsoft.UI.Xaml.Media;
 using System;
-using Traysky.Helpers;
 
 namespace Traysky.ViewModels.Items;
 
@@ -19,6 +17,4 @@ public sealed class MentionSuggestionItem
     public string NameOrHandle => DisplayName.Length > 0 ? DisplayName : Handle;
 
     public string HandleDisplay => "@" + Handle;
-
-    public ImageSource? AvatarImage => BindHelpers.ImageFromUri(AvatarUri);
 }

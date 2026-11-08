@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="using:Traysky.Helpers"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
@@ -38,7 +39,7 @@
                             Background="{ThemeResource ControlFillColorSecondaryBrush}">
                             <Image
                                 HorizontalAlignment="Center"
-                                Source="{x:Bind ViewModel.Banner.Preview, Mode=OneWay}"
+                                Source="{x:Bind helpers:BindHelpers.ProfileImagePreview(ViewModel.Banner.CurrentUri, ViewModel.Banner.UploadBytes), Mode=OneWay}"
                                 Stretch="UniformToFill" />
                         </Border>
                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -64,7 +65,7 @@
                             Height="72"
                             HorizontalAlignment="Left"
                             DisplayName="{x:Bind ViewModel.DisplayName, Mode=OneWay}"
-                            ProfilePicture="{x:Bind ViewModel.Avatar.Preview, Mode=OneWay}" />
+                            ProfilePicture="{x:Bind helpers:BindHelpers.ProfileImagePreview(ViewModel.Avatar.CurrentUri, ViewModel.Avatar.UploadBytes), Mode=OneWay}" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Command="{x:Bind ViewModel.ChooseAvatarCommand}" Content="Choose picture" />
                             <Button

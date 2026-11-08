@@ -1,4 +1,3 @@
-using Microsoft.UI.Xaml;
 using Traysky.Services;
 
 namespace Traysky.ViewModels.Items;
@@ -23,6 +22,4 @@ public sealed class ThreadRow
     public bool HasMoreReplies => MoreReplies > 0;
 
     public string MoreRepliesText => ThreadFlattenPolicy.MoreRepliesText(MoreReplies);
-
-    public Thickness Indent => new(Depth * 16, 0, 0, 0);
 }

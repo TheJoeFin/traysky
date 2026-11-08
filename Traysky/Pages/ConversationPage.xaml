@@ -116,24 +116,24 @@
                         Text="{x:Bind Text}"
                         TextAlignment="Center"
                         TextWrapping="Wrap"
-                        Visibility="{x:Bind SystemVisibility}" />
+                        Visibility="{x:Bind IsSystem}" />
                     <StackPanel
                         MaxWidth="300"
-                        Margin="{x:Bind RunMargin, Mode=OneWay}"
-                        HorizontalAlignment="{x:Bind Alignment}"
+                        Margin="{x:Bind helpers:BindHelpers.RunMargin(StartsRun), Mode=OneWay}"
+                        HorizontalAlignment="{x:Bind helpers:BindHelpers.AlignEnd(IsMine)}"
                         Spacing="2"
-                        Visibility="{x:Bind BubbleVisibility}">
+                        Visibility="{x:Bind IsBubble}">
                         <StackPanel
                             Margin="4,0,4,2"
-                            HorizontalAlignment="{x:Bind Alignment}"
+                            HorizontalAlignment="{x:Bind helpers:BindHelpers.AlignEnd(IsMine)}"
                             Orientation="Horizontal"
                             Spacing="6"
-                            Visibility="{x:Bind RunHeaderVisibility, Mode=OneWay}">
+                            Visibility="{x:Bind StartsRun, Mode=OneWay}">
                             <TextBlock
                                 FontSize="11"
                                 FontWeight="SemiBold"
                                 Text="{x:Bind SenderName}"
-                                Visibility="{x:Bind SenderNameVisibility, Mode=OneWay}" />
+                                Visibility="{x:Bind ShowSenderName, Mode=OneWay}" />
                             <TextBlock
                                 FontSize="11"
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -142,7 +142,7 @@
 
                         <!--  Received messages end in a "..." button (dim until the pointer is over the message) that opens reactions and copy.  -->
                         <Grid
-                            HorizontalAlignment="{x:Bind Alignment}"
+                            HorizontalAlignment="{x:Bind helpers:BindHelpers.AlignEnd(IsMine)}"
                             Background="Transparent"
                             PointerEntered="Message_PointerEntered"
                             PointerExited="Message_PointerExited">
@@ -160,7 +160,7 @@
                                 BorderThickness="0"
                                 Opacity="0.45"
                                 ToolTipService.ToolTip="Options"
-                                Visibility="{x:Bind OptionsButtonVisibility}">
+                                Visibility="{x:Bind ShowOptionsButton}">
                                 <FontIcon FontSize="14" Glyph="&#xE712;" />
                                 <Button.Flyout>
                                     <Flyout Placement="Top">
@@ -194,7 +194,7 @@
                             Grid.Column="0"
                             MaxWidth="268"
                             Padding="12,7"
-                            HorizontalAlignment="{x:Bind Alignment}"
+                            HorizontalAlignment="{x:Bind helpers:BindHelpers.AlignEnd(IsMine)}"
                             Background="{x:Bind helpers:BindHelpers.BrushFromKey(BubbleBrushKey)}"
                             CornerRadius="14"
                             ToolTipService.ToolTip="{x:Bind TimeText}">
@@ -222,7 +222,7 @@
 
                         <TextBlock
                             Margin="6,0"
-                            HorizontalAlignment="{x:Bind Alignment}"
+                            HorizontalAlignment="{x:Bind helpers:BindHelpers.AlignEnd(IsMine)}"
                             FontSize="12"
                             Text="{x:Bind ReactionsText, Mode=OneWay}"
                             Visibility="{x:Bind HasReactions, Mode=OneWay}" />

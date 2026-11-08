@@ -1,6 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using Traysky.Services;
 
@@ -8,7 +6,8 @@ namespace Traysky.ViewModels.Items;
 
 /// <summary>
 /// The avatar or the banner in the profile editor: what the account has now, plus the pending
-/// change (keep, replace with a chosen picture, or remove) and a preview of the result.
+/// change (keep, replace with a chosen picture, or remove). The view shows the result from
+/// <see cref="CurrentUri"/> and <see cref="UploadBytes"/>; this class holds no UI types.
 /// </summary>
 public sealed partial class ProfileImageSlot : ObservableObject
 {
@@ -19,8 +18,13 @@ public sealed partial class ProfileImageSlot : ObservableObject
     /// <summary>The picture to upload; set only while <see cref="Change"/> is <see cref="ProfileImageChange.Replace"/>.</summary>
     public ProfileImageUpload? Upload { get; private set; }
 
+    /// <summary>The picture to show while nothing is chosen: the account's own, or null when removed or absent.</summary>
     [ObservableProperty]
-    public partial ImageSource? Preview { get; private set; }
+    public partial Uri? CurrentUri { get; private set; }
+
+    /// <summary>The chosen replacement's bytes for previewing; null unless a picture was chosen.</summary>
+    [ObservableProperty]
+    public partial byte[]? UploadBytes { get; private set; }
 
     public bool HasImage => Change switch
     {
@@ -38,11 +42,12 @@ public sealed partial class ProfileImageSlot : ObservableObject
         Reset();
     }
 
-    public void Replace(ProfileImageUpload upload, ImageSource preview)
+    public void Replace(ProfileImageUpload upload)
     {
         Change = ProfileImageChange.Replace;
         Upload = upload;
-        Preview = preview;
+        UploadBytes = upload.Bytes;
+        CurrentUri = null;
         Notify();
     }
 
@@ -50,7 +55,8 @@ public sealed partial class ProfileImageSlot : ObservableObject
     {
         Change = ProfileImageChange.Remove;
         Upload = null;
-        Preview = null;
+        UploadBytes = null;
+        CurrentUri = null;
         Notify();
     }
 
@@ -59,7 +65,8 @@ public sealed partial class ProfileImageSlot : ObservableObject
     {
         Change = ProfileImageChange.Keep;
         Upload = null;
-        Preview = _current is null ? null : new BitmapImage(_current);
+        UploadBytes = null;
+        CurrentUri = _current;
         Notify();
     }
 

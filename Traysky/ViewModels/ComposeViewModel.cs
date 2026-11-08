@@ -7,7 +7,6 @@ using idunno.Bluesky.Actor;
 using idunno.Bluesky.Embed;
 using idunno.Bluesky.Feed;
 using idunno.Bluesky.Video;
-using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -95,7 +94,24 @@ public sealed partial class ComposeViewModel : ObservableObject
     public string InteractionSummary => InteractionGatePolicy.Summary(ReplySetting, AllowQuotes, ReplyTo is not null);
 
     /// <summary>Whether the controls differ from the defaults, so the button can stand out.</summary>
-    public bool HasCustomInteraction => !InteractionGatePolicy.IsDefault(ReplyTo is null ? ReplySetting : ReplyChoice.Everyone, AllowQuotes);
+    /// <summary>The account's curation lists, for the "who can reply" dialog. A reply has no reply controls (they belong to the thread's root), so it offers none.</summary>
+    public async Task<IReadOnlyList<ListItem>> LoadReplyGateListsAsync()
+    {
+        if (ReplyTo is not null)
+            return [];
+
+        return (PreviewMode.IsEnabled ? PreviewMode.SampleLists() : await ListsService.GetOwnCurationListsAsync()) ?? [];
+    }
+
+    /// <summary>Stores what the reply / quote dialog chose; a null <paramref name="reply"/> leaves the reply setting alone.</summary>
+    public void ApplyInteractionChoice(ReplyChoice? reply, bool allowQuotes)
+    {
+        if (reply is not null)
+            ReplySetting = reply;
+        AllowQuotes = allowQuotes;
+    }
+
+    public bool HasCustomInteraction =>!InteractionGatePolicy.IsDefault(ReplyTo is null ? ReplySetting : ReplyChoice.Everyone, AllowQuotes);
 
     /// <summary>The draft the box was restored from, so saving again updates it and posting removes it.</summary>
     private TimestampIdentifier? _draftId;
@@ -516,10 +532,6 @@ public sealed partial class ComposeViewModel : ObservableObject
         using InMemoryRandomAccessStream memoryStream = await ToInMemoryStreamAsync(bytes);
         BitmapDecoder decoder = await BitmapDecoder.CreateAsync(memoryStream);
 
-        memoryStream.Seek(0);
-        var thumbnail = new BitmapImage();
-        await thumbnail.SetSourceAsync(memoryStream);
-
         Attachments.Add(new ComposeAttachmentItem
         {
             Bytes = bytes,
@@ -528,7 +540,6 @@ public sealed partial class ComposeViewModel : ObservableObject
             Kind = ComposeAttachmentKind.Image,
             PixelWidth = width ?? (int)decoder.PixelWidth,
             PixelHeight = height ?? (int)decoder.PixelHeight,
-            Thumbnail = thumbnail,
             IsOversized = oversized
         });
     }
@@ -565,10 +576,6 @@ public sealed partial class ComposeViewModel : ObservableObject
         if (index < 0)
             return;
 
-        using InMemoryRandomAccessStream memoryStream = await ToInMemoryStreamAsync(result.Bytes);
-        var thumbnail = new BitmapImage();
-        await thumbnail.SetSourceAsync(memoryStream);
-
         Attachments[index] = new ComposeAttachmentItem
         {
             Bytes = result.Bytes,
@@ -577,7 +584,6 @@ public sealed partial class ComposeViewModel : ObservableObject
             Kind = ComposeAttachmentKind.Image,
             PixelWidth = result.Width,
             PixelHeight = result.Height,
-            Thumbnail = thumbnail,
             AltText = attachment.AltText
         };
     }

@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using Microsoft.UI.Xaml.Media.Imaging;
 using Traysky.Services;
 
 namespace Traysky.ViewModels.Items;
@@ -17,9 +16,6 @@ public sealed partial class ComposeAttachmentItem : ObservableObject
     public ComposeAttachmentKind Kind { get; init; }
     public int? PixelWidth { get; init; }
     public int? PixelHeight { get; init; }
-
-    /// <summary>Null for video — no frame is extracted, the UI just shows a video glyph.</summary>
-    public BitmapImage? Thumbnail { get; init; }
 
     /// <summary>Over Bluesky's image size limit and not yet shrunk; the post can't be sent until it is compressed or removed.</summary>
     public bool IsOversized { get; init; }

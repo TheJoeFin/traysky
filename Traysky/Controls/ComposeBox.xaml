@@ -8,29 +8,30 @@
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="using:Traysky.Helpers"
+    xmlns:vm="using:Traysky.ViewModels"
     xmlns:items="using:Traysky.ViewModels.Items"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <DataTemplate x:Key="MentionSuggestionTemplate">
+        <DataTemplate x:Key="MentionSuggestionTemplate" x:DataType="items:MentionSuggestionItem">
             <StackPanel Orientation="Horizontal" Padding="8,6" Spacing="8">
                 <PersonPicture
                     Width="28"
                     Height="28"
-                    DisplayName="{Binding NameOrHandle}"
-                    ProfilePicture="{Binding AvatarImage}" />
+                    DisplayName="{x:Bind NameOrHandle}"
+                    ProfilePicture="{x:Bind helpers:BindHelpers.ImageFromUri(AvatarUri)}" />
                 <StackPanel VerticalAlignment="Center" Spacing="0">
-                    <TextBlock FontWeight="SemiBold" Text="{Binding NameOrHandle}" />
-                    <TextBlock Style="{StaticResource SecondaryTextStyle}" Text="{Binding HandleDisplay}" />
+                    <TextBlock FontWeight="SemiBold" Text="{x:Bind NameOrHandle}" />
+                    <TextBlock Style="{StaticResource SecondaryTextStyle}" Text="{x:Bind HandleDisplay}" />
                 </StackPanel>
             </StackPanel>
         </DataTemplate>
 
-        <DataTemplate x:Key="HashtagSuggestionTemplate">
+        <DataTemplate x:Key="HashtagSuggestionTemplate" x:DataType="items:HashtagSuggestionItem">
             <StackPanel Orientation="Horizontal" Padding="8,6" Spacing="8">
                 <FontIcon FontSize="14" Glyph="&#xE8EC;" />
-                <TextBlock VerticalAlignment="Center" Text="{Binding Display}" />
+                <TextBlock VerticalAlignment="Center" Text="{x:Bind Display}" />
             </StackPanel>
         </DataTemplate>
 
@@ -48,7 +49,7 @@
                     <Grid Height="66">
                         <Image
                             Stretch="UniformToFill"
-                            Source="{x:Bind Thumbnail}"
+                            Source="{x:Bind helpers:BindHelpers.AttachmentThumbnail(IsVideo, Bytes)}"
                             Visibility="{x:Bind helpers:BindHelpers.CollapsedIf(IsVideo)}" />
                         <FontIcon
                             FontSize="20"
@@ -59,7 +60,8 @@
                             Padding="4,2"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Bottom"
-                            Command="{Binding ElementName=Root, Path=ViewModel.CompressAttachmentCommand}"
+                            AutomationProperties.AutomationId="CompressAttachmentButton"
+                            Command="{x:Bind vm:ComposeViewModel.Instance.CompressAttachmentCommand}"
                             CommandParameter="{x:Bind}"
                             Content="Compress"
                             FontSize="11"
@@ -75,7 +77,9 @@
                             VerticalAlignment="Top"
                             Background="#A0000000"
                             BorderThickness="0"
-                            Command="{Binding ElementName=Root, Path=ViewModel.RemoveAttachmentCommand}"
+                            AutomationProperties.AutomationId="RemoveAttachmentButton"
+                            AutomationProperties.Name="Remove attachment"
+                            Command="{x:Bind vm:ComposeViewModel.Instance.RemoveAttachmentCommand}"
                             CommandParameter="{x:Bind}"
                             CornerRadius="11"
                             ToolTipService.ToolTip="Remove">
@@ -87,6 +91,8 @@
                     </Grid>
                     <TextBox
                         Margin="4,0,4,4"
+                        AutomationProperties.AutomationId="AttachmentAltTextBox"
+                        AutomationProperties.Name="Alt text"
                         FontSize="11"
                         PlaceholderText="Alt text"
                         Text="{x:Bind AltText, Mode=TwoWay}" />
@@ -101,6 +107,7 @@
                 </Grid.ColumnDefinitions>
                 <Button
                     HorizontalAlignment="Stretch"
+                    AutomationProperties.AutomationId="OpenDraftButton"
                     HorizontalContentAlignment="Left"
                     Click="OpenDraft_Click"
                     Tag="{x:Bind}">
@@ -122,6 +129,8 @@
                 <Button
                     Grid.Column="1"
                     VerticalAlignment="Top"
+                    AutomationProperties.AutomationId="DeleteDraftButton"
+                    AutomationProperties.Name="Delete draft"
                     Click="DeleteDraft_Click"
                     Tag="{x:Bind}"
                     Style="{StaticResource PostActionButtonStyle}"
@@ -162,6 +171,8 @@
                 <Button
                     Grid.Column="1"
                     Padding="4"
+                    AutomationProperties.AutomationId="ClearContextButton"
+                    AutomationProperties.Name="Cancel reply or quote"
                     Command="{x:Bind ViewModel.ClearContextCommand}"
                     Style="{StaticResource PostActionButtonStyle}"
                     ToolTipService.ToolTip="Cancel">
@@ -171,6 +182,8 @@
 
             <controls:RichSuggestBox
                 x:Name="Editor"
+                AutomationProperties.AutomationId="ComposeEditor"
+                AutomationProperties.Name="Post text"
                 BorderThickness="0"
                 ClipboardCopyFormat="PlainText"
                 ClipboardPasteFormat="PlainText"
@@ -201,6 +214,8 @@
                     <ListView
                         x:Name="HashtagList"
                         AllowFocusOnInteraction="False"
+                        AutomationProperties.AutomationId="HashtagSuggestionList"
+                        AutomationProperties.Name="Hashtag suggestions"
                         IsItemClickEnabled="True"
                         IsTabStop="False"
                         ItemClick="HashtagList_ItemClick"
@@ -274,6 +289,8 @@
                         Margin="0,4,4,0"
                         Padding="4"
                         VerticalAlignment="Top"
+                        AutomationProperties.AutomationId="DismissLinkCardButton"
+                        AutomationProperties.Name="Remove link preview"
                         Command="{x:Bind ViewModel.DismissLinkCardCommand}"
                         Style="{StaticResource PostActionButtonStyle}"
                         ToolTipService.ToolTip="Remove link preview">
@@ -301,7 +318,13 @@
                 animations:Implicit.HideAnimations="{StaticResource ImplicitFadeHideAnimations}"
                 animations:Implicit.ShowAnimations="{StaticResource ImplicitFadeShowAnimations}"
                 ColumnSpacing="4"
+                RowSpacing="{x:Bind ActionRowSpacing(IsPageMode), Mode=OneWay}"
                 Visibility="{x:Bind ViewModel.IsExpanded, Mode=OneWay}">
+                <!--  Popup: one row. Full-page compose: tools on the first row, status / counter / Post on the second  -->
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -315,6 +338,8 @@
                 </Grid.ColumnDefinitions>
                 <Button
                     Grid.Column="0"
+                    AutomationProperties.AutomationId="AttachImageButton"
+                    AutomationProperties.Name="Add image"
                     Command="{x:Bind ViewModel.AttachImageCommand}"
                     IsEnabled="{x:Bind ViewModel.CanAttachImage, Mode=OneWay}"
                     Style="{StaticResource PostActionButtonStyle}"
@@ -323,6 +348,8 @@
                 </Button>
                 <Button
                     Grid.Column="1"
+                    AutomationProperties.AutomationId="AttachVideoButton"
+                    AutomationProperties.Name="Add video"
                     Command="{x:Bind ViewModel.AttachVideoCommand}"
                     IsEnabled="{x:Bind ViewModel.CanAttachVideo, Mode=OneWay}"
                     Style="{StaticResource PostActionButtonStyle}"
@@ -331,6 +358,8 @@
                 </Button>
                 <Button
                     Grid.Column="2"
+                    AutomationProperties.AutomationId="InteractionSettingsButton"
+                    AutomationProperties.Name="Reply and quote settings"
                     Click="Interaction_Click"
                     Foreground="{x:Bind InteractionBrush(ViewModel.HasCustomInteraction), Mode=OneWay}"
                     Style="{StaticResource PostActionButtonStyle}"
@@ -339,6 +368,8 @@
                 </Button>
                 <Button
                     Grid.Column="3"
+                    AutomationProperties.AutomationId="DraftsButton"
+                    AutomationProperties.Name="Drafts"
                     Style="{StaticResource PostActionButtonStyle}"
                     ToolTipService.ToolTip="Drafts">
                     <FontIcon FontSize="14" Glyph="&#xE70B;" />
@@ -352,11 +383,13 @@
                                     </Grid.ColumnDefinitions>
                                     <Button
                                         HorizontalAlignment="Stretch"
+                                        AutomationProperties.AutomationId="SaveDraftButton"
                                         Command="{x:Bind ViewModel.SaveDraftCommand}"
                                         Content="Save draft" />
                                     <Button
                                         Grid.Column="1"
                                         HorizontalAlignment="Stretch"
+                                        AutomationProperties.AutomationId="SaveDraftAndClearButton"
                                         Command="{x:Bind ViewModel.SaveDraftAndClearCommand}"
                                         Content="Save and clear"
                                         ToolTipService.ToolTip="Saves the draft and empties the box" />
@@ -385,6 +418,8 @@
                 <Button
                     x:Name="MentionsButton"
                     Grid.Column="4"
+                    AutomationProperties.AutomationId="MentionsButton"
+                    AutomationProperties.Name="Review mentioned profiles"
                     Style="{StaticResource PostActionButtonStyle}"
                     ToolTipService.ToolTip="Review mentioned profiles"
                     Visibility="Collapsed">
@@ -401,6 +436,8 @@
                     MinWidth="0"
                     MinHeight="28"
                     Padding="6,4"
+                    AutomationProperties.AutomationId="PinWindowButton"
+                    AutomationProperties.Name="Keep this window open"
                     Background="Transparent"
                     BorderThickness="0"
                     Click="PinButton_Click"
@@ -409,7 +446,10 @@
                     <FontIcon FontSize="14" Glyph="&#xE718;" />
                 </ToggleButton>
                 <StackPanel
-                    Grid.Column="6"
+                    Grid.Row="{x:Bind ActionRow(IsPageMode), Mode=OneWay}"
+                    Grid.Column="{x:Bind StatusColumn(IsPageMode), Mode=OneWay}"
+                    Grid.ColumnSpan="{x:Bind StatusColumnSpan(IsPageMode), Mode=OneWay}"
+                    VerticalAlignment="Center"
                     Orientation="Horizontal"
                     Spacing="8">
                     <TextBlock
@@ -426,19 +466,23 @@
                     <HyperlinkButton
                         Padding="4,0"
                         VerticalAlignment="Center"
+                        AutomationProperties.AutomationId="CancelUploadButton"
                         Command="{x:Bind ViewModel.CancelUploadCommand}"
                         Content="Cancel"
                         Visibility="{x:Bind ViewModel.CanCancelUpload, Mode=OneWay}" />
                 </StackPanel>
                 <TextBlock
+                    Grid.Row="{x:Bind ActionRow(IsPageMode), Mode=OneWay}"
                     Grid.Column="7"
                     VerticalAlignment="Center"
                     FontSize="12"
                     Foreground="{x:Bind CounterBrush(ViewModel.IsNearLimit, ViewModel.IsOverLimit), Mode=OneWay}"
                     Text="{x:Bind ViewModel.Counter, Mode=OneWay}" />
                 <Button
+                    Grid.Row="{x:Bind ActionRow(IsPageMode), Mode=OneWay}"
                     Grid.Column="8"
                     MinWidth="64"
+                    AutomationProperties.AutomationId="PostButton"
                     Command="{x:Bind ViewModel.PostCommand}"
                     Style="{StaticResource AccentButtonStyle}">
                     <Grid>

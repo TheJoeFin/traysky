@@ -68,7 +68,7 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="items:ThreadRow">
-                    <Grid Background="{x:Bind helpers:BindHelpers.MainPostBackground(IsMain)}" Padding="{x:Bind Indent}">
+                    <Grid Background="{x:Bind helpers:BindHelpers.MainPostBackground(IsMain)}" Padding="{x:Bind helpers:BindHelpers.ThreadIndent(Depth)}">
                         <StackPanel>
                             <controls:PostCard
                                 IsOpenable="{x:Bind helpers:BindHelpers.Not(IsMain)}"

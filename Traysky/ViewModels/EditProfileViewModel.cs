@@ -1,6 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -209,11 +208,7 @@ public sealed partial class EditProfileViewModel : ObservableObject
                 mimeType = "image/jpeg";
             }
 
-            using InMemoryRandomAccessStream stream = await ComposeViewModel.ToInMemoryStreamAsync(bytes);
-            var preview = new BitmapImage();
-            await preview.SetSourceAsync(stream);
-
-            slot.Replace(new ProfileImageUpload(bytes, mimeType), preview);
+            slot.Replace(new ProfileImageUpload(bytes, mimeType));
             OnPropertyChanged(nameof(CanSave));
         }
         catch (Exception ex)
