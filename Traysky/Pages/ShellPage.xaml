@@ -25,6 +25,8 @@
                 <StackPanel Orientation="Horizontal" Spacing="2">
                     <Button
                         x:Name="HomeButton"
+                        AutomationProperties.AutomationId="HomeButton"
+                        AutomationProperties.Name="Home"
                         Click="HomeButton_Click"
                         Style="{StaticResource TitleBarButtonStyle}"
                         ToolTipService.ToolTip="Home"
@@ -33,6 +35,8 @@
                     </Button>
                     <Button
                         x:Name="NewPostButton"
+                        AutomationProperties.AutomationId="NewPostButton"
+                        AutomationProperties.Name="New post"
                         Click="NewPostButton_Click"
                         Style="{StaticResource TitleBarButtonStyle}"
                         ToolTipService.ToolTip="New post (Ctrl+N)"
@@ -41,6 +45,8 @@
                     </Button>
                     <Button
                         x:Name="ExploreButton"
+                        AutomationProperties.AutomationId="ExploreButton"
+                        AutomationProperties.Name="Explore"
                         Click="ExploreButton_Click"
                         Style="{StaticResource TitleBarButtonStyle}"
                         ToolTipService.ToolTip="Explore"
@@ -50,6 +56,8 @@
                     <Grid Visibility="{x:Bind ViewModel.IsSignedIn, Mode=OneWay}">
                         <Button
                             x:Name="NotificationsButton"
+                            AutomationProperties.AutomationId="NotificationsButton"
+                            AutomationProperties.Name="Notifications"
                             Click="NotificationsButton_Click"
                             Style="{StaticResource TitleBarButtonStyle}"
                             ToolTipService.ToolTip="Notifications (Ctrl+2)">
@@ -70,6 +78,8 @@
                     <Grid Visibility="{x:Bind ViewModel.ShowMessages, Mode=OneWay}">
                         <Button
                             x:Name="MessagesButton"
+                            AutomationProperties.AutomationId="MessagesButton"
+                            AutomationProperties.Name="Messages"
                             Click="MessagesButton_Click"
                             Style="{StaticResource TitleBarButtonStyle}"
                             ToolTipService.ToolTip="Messages (Ctrl+3)">
@@ -89,6 +99,8 @@
                     <!--  Your profile while signed in (Settings is a button on it), straight to Settings while signed out.  -->
                     <Button
                         x:Name="AccountButton"
+                        AutomationProperties.AutomationId="AccountButton"
+                        AutomationProperties.Name="Profile and settings"
                         Click="AccountButton_Click"
                         Style="{StaticResource TitleBarButtonStyle}"
                         ToolTipService.ToolTip="Profile and settings">
@@ -96,6 +108,8 @@
                     </Button>
                     <Button
                         x:Name="QuitButton"
+                        AutomationProperties.AutomationId="QuitButton"
+                        AutomationProperties.Name="Quit Traysky"
                         Click="QuitButton_Click"
                         Style="{StaticResource TitleBarButtonStyle}"
                         ToolTipService.ToolTip="Quit Traysky">
@@ -114,6 +128,8 @@
         -->
         <ListView
             x:Name="Tabs"
+            AutomationProperties.AutomationId="FeedTabs"
+            AutomationProperties.Name="Feeds"
             Grid.Row="1"
             Margin="12,4,12,6"
             HorizontalAlignment="Stretch"
@@ -192,6 +208,8 @@
                 VerticalAlignment="Top"
                 Background="#33FFFFFF"
                 BorderThickness="0"
+                AutomationProperties.AutomationId="ImageOverlayCloseButton"
+                AutomationProperties.Name="Close"
                 Click="ImageOverlayClose_Click"
                 CornerRadius="16"
                 ToolTipService.ToolTip="Close">
@@ -227,6 +245,8 @@
                     Height="32"
                     Background="#33FFFFFF"
                     BorderThickness="0"
+                    AutomationProperties.AutomationId="VideoOverlayPopOutButton"
+                    AutomationProperties.Name="Pop out"
                     Click="VideoOverlayPopOut_Click"
                     CornerRadius="16"
                     ToolTipService.ToolTip="Pop out">
@@ -240,6 +260,8 @@
                     Height="32"
                     Background="#33FFFFFF"
                     BorderThickness="0"
+                    AutomationProperties.AutomationId="VideoOverlayCloseButton"
+                    AutomationProperties.Name="Close"
                     Click="VideoOverlayClose_Click"
                     CornerRadius="16"
                     ToolTipService.ToolTip="Close">
