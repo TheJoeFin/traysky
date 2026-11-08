@@ -70,7 +70,8 @@ public static class ToastService
         return ParseDestination(args);
     }
 
-    public static void Show(string title, string body, ShellDestination destination = ShellDestination.Notifications, Uri? avatar = null)
+    /// <param name="tag">Short key (under 64 chars) so the toast can be removed later with <see cref="RemoveByTag"/>.</param>
+    public static void Show(string title, string body, ShellDestination destination = ShellDestination.Notifications, Uri? avatar = null, string? tag = null)
     {
         if (!_registered)
             return;
@@ -87,11 +88,31 @@ public static class ToastService
             if (avatar is not null && avatar.Scheme == Uri.UriSchemeHttps)
                 builder.SetAppLogoOverride(avatar, AppNotificationImageCrop.Circle);
 
-            AppNotificationManager.Default.Show(builder.BuildNotification());
+            AppNotification notification = builder.BuildNotification();
+            if (tag is not null)
+                notification.Tag = tag;
+
+            AppNotificationManager.Default.Show(notification);
         }
         catch (Exception ex)
         {
             LogService.Warn("Toast", $"Show failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Removes one toast from the screen and Action Center, e.g. once what it announced is read.</summary>
+    public static void RemoveByTag(string tag)
+    {
+        if (!_registered)
+            return;
+
+        try
+        {
+            _ = AppNotificationManager.Default.RemoveByTagAsync(tag);
+        }
+        catch (Exception ex)
+        {
+            LogService.Warn("Toast", $"RemoveByTag failed: {ex.Message}");
         }
     }
 

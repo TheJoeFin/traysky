@@ -4,6 +4,7 @@ using idunno.Bluesky.Notifications;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using Traysky.Models;
 
@@ -19,6 +20,9 @@ public sealed class NotificationAnnouncer
 {
     private readonly NotificationPollService _poll = NotificationPollService.Instance;
     private readonly Func<bool> _isFlyoutVisible;
+    // Toast tag -> the notification URIs it announced, so it can be removed once they are all read.
+    private readonly Dictionary<string, List<string>> _toasts = [];
+    private int _tagSeq;
     private bool _hasBaseline;
     private DateTimeOffset _lastAnnouncedIndexedAt = DateTimeOffset.MinValue;
 
@@ -43,10 +47,58 @@ public sealed class NotificationAnnouncer
 
     private void OnUnreadChanged(object? sender, UnreadChangedEventArgs e)
     {
+        if (e.Current == 0)
+        {
+            // Everything is read (here or on another client): nothing should linger.
+            if (_toasts.Count > 0)
+            {
+                ToastService.ClearAll();
+                _toasts.Clear();
+            }
+            return;
+        }
+
+        if (e.Current < e.Previous && _toasts.Count > 0)
+        {
+            _ = ClearReadToastsAsync();
+            return;
+        }
+
         if (!_hasBaseline || e.Current <= e.Previous || _isFlyoutVisible())
             return;
 
         _ = AnnounceAsync(Math.Min(e.Current - e.Previous, 20));
+    }
+
+    /// <summary>Removes the toasts whose notifications have since been read.</summary>
+    private async Task ClearReadToastsAsync()
+    {
+        try
+        {
+            AtProtoHttpResult<NotificationCollection> result = await BlueskySessionService.Instance.Agent.ListNotifications(limit: 50);
+            if (!result.Succeeded || result.Result is null)
+                return;
+
+            HashSet<string> read = [];
+            foreach (Notification n in result.Result)
+            {
+                if (n.IsRead)
+                    read.Add(n.Uri.ToString());
+            }
+
+            foreach (KeyValuePair<string, List<string>> toast in _toasts.ToArray())
+            {
+                if (toast.Value.TrueForAll(read.Contains))
+                {
+                    ToastService.RemoveByTag(toast.Key);
+                    _toasts.Remove(toast.Key);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LogService.Warn("Announce", $"Clearing read toasts failed: {ex.Message}");
+        }
     }
 
     private async Task AnnounceAsync(int expectedNew)
@@ -61,6 +113,7 @@ public sealed class NotificationAnnouncer
                 return;
 
             int likes = 0, reposts = 0, follows = 0;
+            List<string> summaryUris = [];
             List<Notification> individual = [];
             DateTimeOffset newestSeen = _lastAnnouncedIndexedAt;
 
@@ -82,12 +135,15 @@ public sealed class NotificationAnnouncer
                         break;
                     case NotificationKind.Like when SettingsService.ToastLikesReposts:
                         likes++;
+                        summaryUris.Add(n.Uri.ToString());
                         break;
                     case NotificationKind.Repost when SettingsService.ToastLikesReposts:
                         reposts++;
+                        summaryUris.Add(n.Uri.ToString());
                         break;
                     case NotificationKind.Follow when SettingsService.ToastFollows:
                         follows++;
+                        summaryUris.Add(n.Uri.ToString());
                         break;
                 }
             }
@@ -101,7 +157,9 @@ public sealed class NotificationAnnouncer
                 string who = FeedMapper.DisplayNameOf(n.Author);
                 string verb = NotificationGroupingPolicy.ToastVerb(FeedMapper.ToKind(n.Reason));
                 string body = (n.Record as Post)?.Text ?? string.Empty;
-                ToastService.Show($"{who} {verb}", body, ShellDestination.Notifications, n.Author.Avatar);
+                string tag = NextTag();
+                _toasts[tag] = [n.Uri.ToString()];
+                ToastService.Show($"{who} {verb}", body, ShellDestination.Notifications, n.Author.Avatar, tag);
             }
 
             List<string> parts = [];
@@ -110,13 +168,19 @@ public sealed class NotificationAnnouncer
             if (follows > 0) parts.Add($"{follows} new follower{(follows == 1 ? "" : "s")}");
 
             if (parts.Count > 0)
-                ToastService.Show("Bluesky", string.Join(", ", parts), ShellDestination.Notifications);
+            {
+                string tag = NextTag();
+                _toasts[tag] = summaryUris;
+                ToastService.Show("Bluesky", string.Join(", ", parts), ShellDestination.Notifications, tag: tag);
+            }
         }
         catch (Exception ex)
         {
             LogService.Warn("Announce", $"Failed: {ex.Message}");
         }
     }
+
+    private string NextTag() => $"n{++_tagSeq}";
 
     private static bool AnyToastEnabled() =>
         SettingsService.ToastMentions || SettingsService.ToastReplies || SettingsService.ToastQuotes
