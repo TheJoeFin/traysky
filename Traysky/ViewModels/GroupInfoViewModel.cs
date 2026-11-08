@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -16,7 +17,7 @@ namespace Traysky.ViewModels;
 /// group sees the member list; the rest is for the owner (see <see cref="GroupChatPolicy.PermissionsFor"/>).
 /// One instance per <see cref="Pages.GroupInfoPage"/>.
 /// </summary>
-public sealed partial class GroupInfoViewModel : ObservableObject
+public sealed partial class GroupInfoViewModel : DialogViewModel
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ConversationItem? _conversation;
@@ -330,6 +331,39 @@ public sealed partial class GroupInfoViewModel : ObservableObject
             SetCount(MemberCount + 1);
             Error = error;
         }
+    }
+
+    [RelayCommand]
+    private async Task RenameGroup()
+    {
+        if (await Dialogs.AskGroupNameAsync(Name) is { } name)
+            await RenameAsync(name);
+    }
+
+    [RelayCommand]
+    private async Task AddPeople()
+    {
+        int room = GroupChatPolicy.RoomLeft((int)MemberCount, (int)MemberLimit);
+        if (room == 0 && MemberLimit > 0)
+        {
+            await Dialogs.ShowMessageAsync("This group is full", $"A group holds at most {MemberLimit} people.");
+            return;
+        }
+
+        List<ActorItem>? people = await Dialogs.AskGroupMembersAsync(room == 0 ? int.MaxValue : room, MemberDids);
+        if (people is not null)
+            await AddAsync(people);
+    }
+
+    /// <summary>Asks, then takes the member out of the group.</summary>
+    [RelayCommand]
+    private async Task RemoveMember(ActorItem? member)
+    {
+        if (member is null)
+            return;
+
+        if (await Dialogs.ConfirmAsync($"Remove {member.NameOrHandle}?", "They are taken out of the group and can't read new messages.", "Remove"))
+            await RemoveAsync(member);
     }
 
     partial void OnLinkEnabledChanged(bool value)

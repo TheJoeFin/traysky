@@ -1,6 +1,3 @@
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using System;
 using System.Threading.Tasks;
 using Traysky.Services;
 using Traysky.ViewModels.Items;
@@ -14,7 +11,7 @@ public static class FeedPinning
     /// Flips the row's pinned state straight away and stores it; if the account can't be updated the row
     /// goes back and a dialog says so. The shell's tab row refreshes itself after a successful change.
     /// </summary>
-    public static async Task ToggleAsync(FeedSuggestionItem feed, XamlRoot root)
+    public static async Task ToggleAsync(FeedSuggestionItem feed, IDialogService dialogs)
     {
         if (!feed.CanPin)
             return;
@@ -29,12 +26,8 @@ public static class FeedPinning
             return;
 
         feed.IsPinned = !pin;
-        await new ContentDialog
-        {
-            XamlRoot = root,
-            Title = pin ? "Couldn't pin the feed" : "Couldn't unpin the feed",
-            Content = "Your Bluesky settings couldn't be updated. Check your connection and try again.",
-            CloseButtonText = "OK"
-        }.ShowAsync();
+        await dialogs.ShowMessageAsync(
+            pin ? "Couldn't pin the feed" : "Couldn't unpin the feed",
+            "Your Bluesky settings couldn't be updated. Check your connection and try again.");
     }
 }

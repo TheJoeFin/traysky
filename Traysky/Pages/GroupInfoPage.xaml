@@ -45,7 +45,7 @@
                         <Button
                             Grid.Column="1"
                             VerticalAlignment="Top"
-                            Click="Rename_Click"
+                            Command="{x:Bind ViewModel.RenameGroupCommand}"
                             ToolTipService.ToolTip="Rename group"
                             Visibility="{x:Bind ViewModel.CanRename, Mode=OneWay}">
                             <FontIcon FontSize="14" Glyph="&#xE70F;" />
@@ -145,7 +145,7 @@
 
                     <Button
                         Margin="12,0,12,8"
-                        Click="AddPeople_Click"
+                        Command="{x:Bind ViewModel.AddPeopleCommand}"
                         Visibility="{x:Bind ViewModel.CanAddMembers, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <FontIcon FontSize="14" Glyph="&#xE710;" />

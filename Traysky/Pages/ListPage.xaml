@@ -56,12 +56,12 @@
                             <FontIcon FontSize="14" Glyph="&#xE712;" />
                             <Button.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                    <MenuFlyoutItem Click="Edit_Click" Text="Edit list">
+                                    <MenuFlyoutItem Command="{x:Bind ViewModel.EditListCommand}" Text="Edit list">
                                         <MenuFlyoutItem.Icon>
                                             <FontIcon Glyph="&#xE70F;" />
                                         </MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
-                                    <MenuFlyoutItem Click="Delete_Click" Text="Delete list">
+                                    <MenuFlyoutItem Command="{x:Bind ViewModel.DeleteListCommand}" Text="Delete list">
                                         <MenuFlyoutItem.Icon>
                                             <FontIcon Glyph="&#xE74D;" />
                                         </MenuFlyoutItem.Icon>
@@ -77,11 +77,11 @@
                         Visibility="{x:Bind ViewModel.CanMute, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button
-                                Click="Mute_Click"
+                                Command="{x:Bind ViewModel.ToggleMutedCommand}"
                                 Content="{x:Bind ViewModel.MuteLabel, Mode=OneWay}"
                                 IsEnabled="{x:Bind ViewModel.CanToggleSubscription, Mode=OneWay}" />
                             <Button
-                                Click="Block_Click"
+                                Command="{x:Bind ViewModel.BlockListCommand}"
                                 Content="{x:Bind ViewModel.BlockLabel, Mode=OneWay}"
                                 IsEnabled="{x:Bind ViewModel.CanToggleSubscription, Mode=OneWay}"
                                 Visibility="{x:Bind ViewModel.CanBlock, Mode=OneWay}" />

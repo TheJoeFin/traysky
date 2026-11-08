@@ -46,6 +46,7 @@ public sealed partial class ProfilePage : Page
 
     public ProfilePage()
     {
+        ViewModel.Dialogs = new XamlDialogService(() => XamlRoot);
         InitializeComponent();
         Loaded += OnLoaded;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -104,10 +105,11 @@ public sealed partial class ProfilePage : Page
     // The button sits inside a row that opens the feed when tapped; pressing Pin shouldn't also do that.
     private void PinFeed_Tapped(object sender, TappedRoutedEventArgs e) => e.Handled = true;
 
-    private async void PinFeed_Click(object sender, RoutedEventArgs e)
+    // Row templates can't reach the page's view model with x:Bind, so this only forwards the row.
+    private void PinFeed_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: FeedSuggestionItem feed })
-            await Helpers.FeedPinning.ToggleAsync(feed, XamlRoot);
+            ViewModel.PinFeedCommand.Execute(feed);
     }
 
     private void PackRow_Tapped(object sender, TappedRoutedEventArgs e)
@@ -121,25 +123,6 @@ public sealed partial class ProfilePage : Page
         if (sender is FrameworkElement { DataContext: ListItem list })
             ListPage.Open(list);
     }
-
-    private async void NewList_Click(object sender, RoutedEventArgs e)
-    {
-        var answer = await Helpers.ListDialogs.AskListAsync(XamlRoot, existing: null);
-        if (answer is not { } created)
-            return;
-
-        ListItem? list = await ViewModel.CreateListAsync(created.Name, created.Description, created.Kind);
-        if (list is null)
-        {
-            await Helpers.ModerationDialogs.ShowMessageAsync(XamlRoot, "Couldn't create the list", "That didn't go through. Try again in a moment.");
-            return;
-        }
-
-        ListPage.Open(list);
-    }
-
-    private async void AddToList_Click(object sender, RoutedEventArgs e) =>
-        await Helpers.ListDialogs.ShowMembershipAsync(XamlRoot, ViewModel.ActorKey, ViewModel.Handle);
 
     private void ContainedPost_ProfileRequested(object? sender, string did) =>
         Frame?.Navigate(typeof(ProfilePage), new ContainedProfileRequest(did));
@@ -200,43 +183,6 @@ public sealed partial class ProfilePage : Page
         BellOffItem.IsChecked = ViewModel.ActivityLevel == ActivitySubscriptionLevel.Off;
         BellPostsItem.IsChecked = ViewModel.ActivityLevel == ActivitySubscriptionLevel.Posts;
         BellRepliesItem.IsChecked = ViewModel.ActivityLevel == ActivitySubscriptionLevel.PostsAndReplies;
-    }
-
-    private async void Bell_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not FrameworkElement { Tag: string tag } || !System.Enum.TryParse(tag, out ActivitySubscriptionLevel level))
-            return;
-
-        if (!await ViewModel.SetActivityAsync(level))
-            await Helpers.ModerationDialogs.ShowMessageAsync(XamlRoot, "Couldn't update notifications", "That didn't go through. Try again in a moment.");
-    }
-
-    private async void Mute_Click(object sender, RoutedEventArgs e)
-    {
-        if (!await ViewModel.ToggleMuteAsync())
-            await Helpers.ModerationDialogs.ShowMessageAsync(XamlRoot, "Couldn't update mute", "That didn't go through. Try again in a moment.");
-    }
-
-    private async void Block_Click(object sender, RoutedEventArgs e)
-    {
-        // Unblocking needs no confirmation.
-        if (!ViewModel.IsBlocking && !await Helpers.ModerationDialogs.ConfirmBlockAsync(XamlRoot, ViewModel.Handle))
-            return;
-
-        if (!await ViewModel.ToggleBlockAsync())
-            await Helpers.ModerationDialogs.ShowMessageAsync(XamlRoot, "Couldn't update block", "That didn't go through. Try again in a moment.");
-    }
-
-    private async void Report_Click(object sender, RoutedEventArgs e)
-    {
-        var answer = await Helpers.ModerationDialogs.AskReportAsync(XamlRoot, "account");
-        if (answer is not { } report)
-            return;
-
-        bool sent = await ViewModel.ReportAsync(report.Reason, report.Details);
-        await Helpers.ModerationDialogs.ShowMessageAsync(XamlRoot,
-            sent ? "Report sent" : "Couldn't send report",
-            sent ? "Thanks. Bluesky's moderators will take a look." : "The report didn't go through. Try again in a moment.");
     }
 
     private void BookmarksButton_Click(object sender, RoutedEventArgs e) => BookmarksPage.Open();

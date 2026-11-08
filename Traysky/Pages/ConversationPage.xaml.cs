@@ -37,6 +37,7 @@ public sealed partial class ConversationPage : Page
 
     public ConversationPage()
     {
+        ViewModel.Dialogs = new XamlDialogService(() => XamlRoot);
         InitializeComponent();
         Loaded += OnLoaded;
 
@@ -214,11 +215,7 @@ public sealed partial class ConversationPage : Page
         }
 
         MenuFlyoutItem leave = new() { Text = menu.LeaveLabel, Icon = new FontIcon { Glyph = "" } };
-        leave.Click += async (_, _) =>
-        {
-            if (await Helpers.ChatDialogs.ConfirmAsync(XamlRoot, menu.LeaveLabel + "?", menu.LeavePrompt, menu.LeaveButton))
-                await ViewModel.LeaveAsync();
-        };
+        leave.Click += (_, _) => ViewModel.ConfirmLeaveCommand.Execute(null);
         ConversationMenu.Items.Add(leave);
     }
 

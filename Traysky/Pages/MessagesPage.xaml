@@ -54,7 +54,7 @@
                             Padding="8"
                             Background="Transparent"
                             BorderThickness="0"
-                            Click="JoinGroup_Click"
+                            Command="{x:Bind ViewModel.JoinGroupCommand}"
                             ToolTipService.ToolTip="Join a group with a link">
                             <FontIcon FontSize="14" Glyph="&#xE71B;" />
                         </Button>
@@ -63,7 +63,7 @@
                             Padding="8"
                             Background="Transparent"
                             BorderThickness="0"
-                            Click="NewGroup_Click"
+                            Command="{x:Bind ViewModel.NewGroupCommand}"
                             ToolTipService.ToolTip="New group">
                             <FontIcon FontSize="14" Glyph="&#xE902;" />
                         </Button>

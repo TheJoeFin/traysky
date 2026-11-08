@@ -23,6 +23,7 @@ public sealed partial class GroupInfoPage : Page
 
     public GroupInfoPage()
     {
+        ViewModel.Dialogs = new XamlDialogService(() => XamlRoot);
         InitializeComponent();
         Loaded += OnLoaded;
     }
@@ -43,33 +44,11 @@ public sealed partial class GroupInfoPage : Page
             ProfilePage.Open(actor.ProfileKey);
     }
 
-    private async void Rename_Click(object sender, RoutedEventArgs e)
+    // Row templates can't reach the page's view model with x:Bind, so this only forwards the row.
+    private void Remove_Click(object sender, RoutedEventArgs e)
     {
-        if (await GroupDialogs.AskNameAsync(XamlRoot, ViewModel.Name) is { } name)
-            await ViewModel.RenameAsync(name);
-    }
-
-    private async void AddPeople_Click(object sender, RoutedEventArgs e)
-    {
-        int room = GroupChatPolicy.RoomLeft((int)ViewModel.MemberCount, (int)ViewModel.MemberLimit);
-        if (room == 0 && ViewModel.MemberLimit > 0)
-        {
-            await ModerationDialogs.ShowMessageAsync(XamlRoot, "This group is full", $"A group holds at most {ViewModel.MemberLimit} people.");
-            return;
-        }
-
-        List<ActorItem>? people = await GroupDialogs.AskMembersAsync(XamlRoot, room == 0 ? int.MaxValue : room, ViewModel.MemberDids);
-        if (people is not null)
-            await ViewModel.AddAsync(people);
-    }
-
-    private async void Remove_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not FrameworkElement { DataContext: ActorItem member })
-            return;
-
-        if (await ChatDialogs.ConfirmAsync(XamlRoot, $"Remove {member.NameOrHandle}?", "They are taken out of the group and can't read new messages.", "Remove"))
-            await ViewModel.RemoveAsync(member);
+        if (sender is FrameworkElement { DataContext: ActorItem member })
+            ViewModel.RemoveMemberCommand.Execute(member);
     }
 
     private void Approve_Click(object sender, RoutedEventArgs e)

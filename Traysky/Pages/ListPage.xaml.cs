@@ -21,6 +21,7 @@ public sealed partial class ListPage : Page
 
     public ListPage()
     {
+        ViewModel.Dialogs = new Services.XamlDialogService(() => XamlRoot);
         InitializeComponent();
         Loaded += OnLoaded;
         ViewModel.PropertyChanged += (_, e) =>
@@ -57,17 +58,6 @@ public sealed partial class ListPage : Page
             _ = ViewModel.RemoveAsync(member);
     }
 
-    private void Mute_Click(object sender, RoutedEventArgs e) => _ = ViewModel.ToggleMutedAsync();
-
-    private async void Block_Click(object sender, RoutedEventArgs e)
-    {
-        // Blocking sweeps in a whole list of people, so ask first; undoing it needs no confirmation.
-        if (!ViewModel.IsBlocked && !await ListDialogs.ConfirmBlockAsync(XamlRoot, ViewModel.Name))
-            return;
-
-        await ViewModel.ToggleBlockedAsync();
-    }
-
     private void AddBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
         if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput)
@@ -90,28 +80,6 @@ public sealed partial class ListPage : Page
         sender.Text = string.Empty;
         sender.ItemsSource = null;
         await ViewModel.AddAsync(actor);
-    }
-
-    private async void Edit_Click(object sender, RoutedEventArgs e)
-    {
-        if (ViewModel.CurrentList is not { } list)
-            return;
-
-        var answer = await ListDialogs.AskListAsync(XamlRoot, list);
-        if (answer is not { } edit)
-            return;
-
-        if (!await ViewModel.EditAsync(edit.Name, edit.Description))
-            await ModerationDialogs.ShowMessageAsync(XamlRoot, "Couldn't save the list", "That didn't go through. Try again in a moment.");
-    }
-
-    private async void Delete_Click(object sender, RoutedEventArgs e)
-    {
-        if (!await ListDialogs.ConfirmDeleteAsync(XamlRoot, ViewModel.Name))
-            return;
-
-        if (!await ViewModel.DeleteAsync())
-            await ModerationDialogs.ShowMessageAsync(XamlRoot, "Couldn't delete the list", "That didn't go through. Try again in a moment.");
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)

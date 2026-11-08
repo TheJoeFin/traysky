@@ -16,6 +16,7 @@ public sealed partial class ExplorePage : Page
 
     public ExplorePage()
     {
+        ViewModel.Dialogs = new XamlDialogService(() => XamlRoot);
         InitializeComponent();
         ShowSelectedTab();
     }
@@ -80,10 +81,11 @@ public sealed partial class ExplorePage : Page
             ProfilePage.Open(actor.ProfileKey);
     }
 
-    private async void PinFeed_Click(object sender, RoutedEventArgs e)
+    // Row templates can't reach the page's view model with x:Bind, so this only forwards the row.
+    private void PinFeed_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: FeedSuggestionItem feed })
-            await Helpers.FeedPinning.ToggleAsync(feed, XamlRoot);
+            ViewModel.PinFeedCommand.Execute(feed);
     }
 
     private void FeedList_ItemClick(object sender, ItemClickEventArgs e)

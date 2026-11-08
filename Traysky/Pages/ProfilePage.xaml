@@ -258,19 +258,22 @@
                                     <MenuFlyout Opening="Bell_Opening" Placement="BottomEdgeAlignedRight">
                                         <RadioMenuFlyoutItem
                                             x:Name="BellOffItem"
-                                            Click="Bell_Click"
+                                            Command="{x:Bind ViewModel.SetActivityLevelCommand}"
+                                            CommandParameter="Off"
                                             GroupName="BellLevel"
                                             Tag="Off"
                                             Text="Off" />
                                         <RadioMenuFlyoutItem
                                             x:Name="BellPostsItem"
-                                            Click="Bell_Click"
+                                            Command="{x:Bind ViewModel.SetActivityLevelCommand}"
+                                            CommandParameter="Posts"
                                             GroupName="BellLevel"
                                             Tag="Posts"
                                             Text="Posts" />
                                         <RadioMenuFlyoutItem
                                             x:Name="BellRepliesItem"
-                                            Click="Bell_Click"
+                                            Command="{x:Bind ViewModel.SetActivityLevelCommand}"
+                                            CommandParameter="PostsAndReplies"
                                             GroupName="BellLevel"
                                             Tag="PostsAndReplies"
                                             Text="Posts and replies" />
@@ -281,22 +284,22 @@
                                 <FontIcon FontSize="14" Glyph="&#xE712;" />
                                 <Button.Flyout>
                                     <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                        <MenuFlyoutItem Click="Mute_Click" Text="{x:Bind ViewModel.MuteLabel, Mode=OneWay}">
+                                        <MenuFlyoutItem Command="{x:Bind ViewModel.UpdateMuteCommand}" Text="{x:Bind ViewModel.MuteLabel, Mode=OneWay}">
                                             <MenuFlyoutItem.Icon>
                                                 <FontIcon Glyph="&#xE74F;" />
                                             </MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Click="Block_Click" Text="{x:Bind ViewModel.BlockLabel, Mode=OneWay}">
+                                        <MenuFlyoutItem Command="{x:Bind ViewModel.UpdateBlockCommand}" Text="{x:Bind ViewModel.BlockLabel, Mode=OneWay}">
                                             <MenuFlyoutItem.Icon>
                                                 <FontIcon Glyph="&#xE733;" />
                                             </MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Click="AddToList_Click" Text="Add to list...">
+                                        <MenuFlyoutItem Command="{x:Bind ViewModel.AddToListCommand}" Text="Add to list...">
                                             <MenuFlyoutItem.Icon>
                                                 <FontIcon Glyph="&#xE71D;" />
                                             </MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Click="Report_Click" Text="Report account">
+                                        <MenuFlyoutItem Command="{x:Bind ViewModel.ReportAccountCommand}" Text="Report account">
                                             <MenuFlyoutItem.Icon>
                                                 <FontIcon Glyph="&#xE7C1;" />
                                             </MenuFlyoutItem.Icon>
@@ -313,7 +316,7 @@
                             Orientation="Horizontal"
                             Spacing="6"
                             Visibility="{x:Bind VisibleUnlessContained(ViewModel.IsSelf, IsContained), Mode=OneWay}">
-                            <Button Click="NewList_Click" ToolTipService.ToolTip="New list">
+                            <Button Command="{x:Bind ViewModel.NewListCommand}" ToolTipService.ToolTip="New list">
                                 <FontIcon FontSize="14" Glyph="&#xE8FD;" />
                             </Button>
                             <Button Click="BookmarksButton_Click" ToolTipService.ToolTip="Bookmarks">

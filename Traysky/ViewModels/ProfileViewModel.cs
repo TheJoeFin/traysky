@@ -25,7 +25,7 @@ namespace Traysky.ViewModels;
 /// (own profile only), feeds and starter packs. Opened for a DID or handle; everything is fetched,
 /// and each tab loads the first time it is shown.
 /// </summary>
-public sealed partial class ProfileViewModel : ObservableObject
+public sealed partial class ProfileViewModel : DialogViewModel
 {
     private const int PageSize = 15;
 
@@ -668,6 +668,74 @@ public sealed partial class ProfileViewModel : ObservableObject
 
     public Task<bool> ReportAsync(idunno.Bluesky.Moderation.ReportType reason, string details) =>
         _did is null ? Task.FromResult(false) : ModerationService.ReportAccountAsync(_did.ToString(), reason, details);
+
+    private const string TryAgainText = "That didn't go through. Try again in a moment.";
+
+    /// <summary>Pin or unpin a feed from the Feeds tab; the parameter is the row's <see cref="FeedSuggestionItem"/>.</summary>
+    [RelayCommand]
+    private Task PinFeed(FeedSuggestionItem? feed) =>
+        feed is null ? Task.CompletedTask : Helpers.FeedPinning.ToggleAsync(feed, Dialogs);
+
+    /// <summary>Asks for a name, makes the list on your own profile and opens it.</summary>
+    [RelayCommand]
+    private async Task NewList()
+    {
+        if (await Dialogs.AskListAsync(existing: null) is not { } created)
+            return;
+
+        ListItem? list = await CreateListAsync(created.Name, created.Description, created.Kind);
+        if (list is null)
+        {
+            await Dialogs.ShowMessageAsync("Couldn't create the list", TryAgainText);
+            return;
+        }
+
+        ListPage.Open(list);
+    }
+
+    [RelayCommand]
+    private Task AddToList() => Dialogs.ShowListMembershipAsync(ActorKey, Handle);
+
+    /// <summary>Sets what this account's activity notifies you about; the parameter is an <see cref="ActivitySubscriptionLevel"/> name.</summary>
+    [RelayCommand]
+    private async Task SetActivityLevel(string? level)
+    {
+        if (!Enum.TryParse(level, out ActivitySubscriptionLevel parsed))
+            return;
+
+        if (!await SetActivityAsync(parsed))
+            await Dialogs.ShowMessageAsync("Couldn't update notifications", TryAgainText);
+    }
+
+    [RelayCommand]
+    private async Task UpdateMute()
+    {
+        if (!await ToggleMuteAsync())
+            await Dialogs.ShowMessageAsync("Couldn't update mute", TryAgainText);
+    }
+
+    [RelayCommand]
+    private async Task UpdateBlock()
+    {
+        // Unblocking needs no confirmation.
+        if (!IsBlocking && !await Dialogs.ConfirmBlockAsync(Handle))
+            return;
+
+        if (!await ToggleBlockAsync())
+            await Dialogs.ShowMessageAsync("Couldn't update block", TryAgainText);
+    }
+
+    [RelayCommand]
+    private async Task ReportAccount()
+    {
+        if (await Dialogs.AskReportAsync("account") is not { } report)
+            return;
+
+        bool sent = await ReportAsync(report.Reason, report.Details);
+        await Dialogs.ShowMessageAsync(
+            sent ? "Report sent" : "Couldn't send report",
+            sent ? "Thanks. Bluesky's moderators will take a look." : "The report didn't go through. Try again in a moment.");
+    }
 
     [RelayCommand]
     private Task Retry() => _actor is null ? Task.CompletedTask : LoadAsync(_actor);

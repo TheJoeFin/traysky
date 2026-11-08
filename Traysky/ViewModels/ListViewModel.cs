@@ -16,7 +16,7 @@ namespace Traysky.ViewModels;
 /// add people (found with the account typeahead) and remove them; removal leaves the row at once
 /// and puts it back if the server refuses.
 /// </summary>
-public sealed partial class ListViewModel : ObservableObject
+public sealed partial class ListViewModel : DialogViewModel
 {
     private const int PageSize = 50;
 
@@ -293,7 +293,42 @@ public sealed partial class ListViewModel : ObservableObject
     };
 
     /// <summary>Mutes or unmutes everyone on the list. Shows the new state at once and puts it back if the server refuses.</summary>
+    [RelayCommand]
     public Task ToggleMutedAsync() => SetSubscriptionAsync(block: false);
+
+    /// <summary>Blocks everyone on the list after asking (undoing it needs no confirmation).</summary>
+    [RelayCommand]
+    private async Task BlockList()
+    {
+        // Blocking sweeps in a whole list of people, so ask first.
+        if (!IsBlocked && !await Dialogs.ConfirmBlockListAsync(Name))
+            return;
+
+        await ToggleBlockedAsync();
+    }
+
+    [RelayCommand]
+    private async Task EditList()
+    {
+        if (CurrentList is not { } list)
+            return;
+
+        if (await Dialogs.AskListAsync(list) is not { } edit)
+            return;
+
+        if (!await EditAsync(edit.Name, edit.Description))
+            await Dialogs.ShowMessageAsync("Couldn't save the list", "That didn't go through. Try again in a moment.");
+    }
+
+    [RelayCommand]
+    private async Task DeleteList()
+    {
+        if (!await Dialogs.ConfirmDeleteListAsync(Name))
+            return;
+
+        if (!await DeleteAsync())
+            await Dialogs.ShowMessageAsync("Couldn't delete the list", "That didn't go through. Try again in a moment.");
+    }
 
     /// <summary>Blocks or unblocks everyone on the list. Shows the new state at once and puts it back if the server refuses.</summary>
     public Task ToggleBlockedAsync() => SetSubscriptionAsync(block: true);

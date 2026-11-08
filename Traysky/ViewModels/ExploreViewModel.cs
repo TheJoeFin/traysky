@@ -19,8 +19,13 @@ namespace Traysky.ViewModels;
 /// the first time its tab is shown and reloads on Retry. These are all server-side
 /// recommendations, so nothing here is paged.
 /// </summary>
-public sealed partial class ExploreViewModel : ObservableObject
+public sealed partial class ExploreViewModel : DialogViewModel
 {
+    /// <summary>Pin or unpin a suggested feed; the parameter is the row's <see cref="FeedSuggestionItem"/>.</summary>
+    [RelayCommand]
+    private Task PinFeed(FeedSuggestionItem? feed) =>
+        feed is null ? Task.CompletedTask : Helpers.FeedPinning.ToggleAsync(feed, Dialogs);
+
     private bool _trendsLoaded;
     private bool _peopleLoaded;
     private bool _feedsLoaded;

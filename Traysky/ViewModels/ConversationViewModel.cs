@@ -19,7 +19,7 @@ namespace Traysky.ViewModels;
 /// polling while the page is open (Bluesky chat has no push for third-party clients), and
 /// sending. One instance per <see cref="Pages.ConversationPage"/>.
 /// </summary>
-public sealed partial class ConversationViewModel : ObservableObject
+public sealed partial class ConversationViewModel : DialogViewModel
 {
     private const int PageSize = 40;
     private const int PollSize = 20;
@@ -403,6 +403,18 @@ public sealed partial class ConversationViewModel : ObservableObject
     }
 
     /// <summary>Leaves (or, for a request, declines) the conversation and drops it from the list.</summary>
+    /// <summary>Asks whether to leave (or delete) this conversation, worded for its kind, then does it.</summary>
+    [RelayCommand]
+    private async Task ConfirmLeave()
+    {
+        if (Conversation is not { } conversation)
+            return;
+
+        ChatConversationMenu menu = ChatConversationMenuPolicy.For(conversation.IsRequest, conversation.IsMuted, conversation.IsGroup);
+        if (await Dialogs.ConfirmAsync(menu.LeaveLabel + "?", menu.LeavePrompt, menu.LeaveButton))
+            await LeaveAsync();
+    }
+
     public async Task LeaveAsync()
     {
         if (Conversation is null)

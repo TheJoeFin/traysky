@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Traysky.Pages;
 using Traysky.Services;
 using Traysky.ViewModels.Items;
 
@@ -17,7 +18,7 @@ namespace Traysky.ViewModels;
 /// The Messages page: every conversation the account is in, newest activity first, requests
 /// included (and labelled) so nothing waits unseen.
 /// </summary>
-public sealed partial class MessagesViewModel : ObservableObject
+public sealed partial class MessagesViewModel : DialogViewModel
 {
     private static readonly Lazy<MessagesViewModel> _instance = new(() => new MessagesViewModel());
 
@@ -349,6 +350,53 @@ public sealed partial class MessagesViewModel : ObservableObject
     }
 
     /// <summary>Declines a request: it leaves the list at once and comes back if the server refuses.</summary>
+    /// <summary>Asks first, then declines the request.</summary>
+    [RelayCommand]
+    private async Task ConfirmDeclineRequest(ConversationItem? conversation)
+    {
+        if (conversation is null)
+            return;
+
+        if (await Dialogs.ConfirmAsync("Decline this request?", $"The request from {conversation.Title} is removed.", "Decline"))
+            await DeclineRequestAsync(conversation);
+    }
+
+    [RelayCommand]
+    private Task JoinGroup() => Dialogs.JoinGroupAsync();
+
+    [RelayCommand]
+    private async Task NewGroup()
+    {
+        if (await Dialogs.AskNewGroupAsync() is not { } answer)
+            return;
+
+        ConversationItem? created;
+        if (PreviewMode.IsEnabled)
+        {
+            created = PreviewMode.SampleNewGroup(answer.Name, answer.Members.Count);
+        }
+        else
+        {
+            (created, string? error) = await GroupChatService.CreateAsync(answer.Name, answer.Members.Select(m => m.Did).ToList());
+            if (error is not null)
+            {
+                await Dialogs.ShowMessageAsync("Couldn't create the group", error);
+                return;
+            }
+        }
+
+        if (created is null)
+        {
+            // The group exists but the server didn't hand it back; the list will show it.
+            Invalidate();
+            _ = RefreshAsync();
+            return;
+        }
+
+        BringToTop(created);
+        ConversationPage.Open(created);
+    }
+
     [RelayCommand]
     private async Task DeclineRequestAsync(ConversationItem? conversation)
     {
