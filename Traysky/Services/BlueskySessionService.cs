@@ -5,7 +5,6 @@ using idunno.AtProto.Events;
 using idunno.Bluesky;
 using idunno.Bluesky.Actor;
 using Microsoft.Extensions.Logging;
-using Microsoft.UI.Dispatching;
 using System;
 using System.Reflection;
 using System.Threading;
@@ -40,7 +39,7 @@ public sealed partial class BlueskySessionService : ObservableObject
 
     public static BlueskySessionService Instance => _instance.Value;
 
-    private readonly DispatcherQueue _dispatcher;
+    private readonly IUiDispatcher _dispatcher;
     private readonly BlueskyAgent _agent;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly object _sessionGate = new();
@@ -58,8 +57,8 @@ public sealed partial class BlueskySessionService : ObservableObject
 
     private BlueskySessionService()
     {
-        _dispatcher = DispatcherQueue.GetForCurrentThread()
-            ?? throw new InvalidOperationException("BlueskySessionService must be created on the UI thread.");
+        // Must be created on the UI thread: the dispatcher captures that thread's queue.
+        _dispatcher = DispatcherQueueUiDispatcher.ForCurrentThread();
 
         string version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
 

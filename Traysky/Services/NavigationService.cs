@@ -6,7 +6,7 @@ using System.Diagnostics;
 
 namespace Traysky.Services;
 
-public partial class NavigationService : ObservableObject
+public partial class NavigationService : ObservableObject, INavigationService
 {
     private static readonly Lazy<NavigationService> _instance = new(() => new NavigationService());
     private Frame? _frame;
@@ -40,6 +40,7 @@ public partial class NavigationService : ObservableObject
 
     public bool CanGoBack => _frame?.CanGoBack ?? false;
 
+    public Type? CurrentPageType => _frame?.Content?.GetType();
 
     private void OnNavigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {

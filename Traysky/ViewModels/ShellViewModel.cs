@@ -14,17 +14,22 @@ namespace Traysky.ViewModels;
 /// </summary>
 public sealed partial class ShellViewModel : ObservableObject
 {
-    private readonly NavigationService _navigation = NavigationService.Instance;
+    private readonly INavigationService _navigation;
     private readonly BlueskySessionService _session = BlueskySessionService.Instance;
     private readonly NotificationPollService _poll = NotificationPollService.Instance;
     private readonly FeedsService _feeds = FeedsService.Instance;
     private readonly ChatService _chat = ChatService.Instance;
 
-    public ShellViewModel()
+    public ShellViewModel() : this(NavigationService.Instance)
     {
+    }
+
+    public ShellViewModel(INavigationService navigation)
+    {
+        _navigation = navigation;
         _navigation.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(NavigationService.CanGoBack))
+            if (e.PropertyName == nameof(INavigationService.CanGoBack))
             {
                 OnPropertyChanged(nameof(CanGoBack));
                 OnPropertyChanged(nameof(ShowTabs));
@@ -48,12 +53,12 @@ public sealed partial class ShellViewModel : ObservableObject
     public ObservableCollection<FeedTabItem> Feeds => _feeds.Tabs;
 
     /// <summary>The feed row shows on the timeline only; Settings and Notifications get the back button instead.</summary>
-    public bool ShowTabs => _session.IsSignedIn && !_navigation.CanGoBack && IsRootPage(_navigation.Frame?.Content?.GetType());
+    public bool ShowTabs => _session.IsSignedIn && !_navigation.CanGoBack && IsRootPage(_navigation.CurrentPageType);
 
     /// <summary>The Home button shows whenever you are signed in and away from the timeline.</summary>
     public bool ShowHome => _session.IsSignedIn
-        && _navigation.Frame?.Content is { } content
-        && !IsRootPage(content.GetType());
+        && _navigation.CurrentPageType is { } pageType
+        && !IsRootPage(pageType);
 
     public int UnreadCount => _poll.UnreadCount;
 

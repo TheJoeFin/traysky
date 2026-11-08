@@ -15,7 +15,7 @@ public static class ToastService
 {
     private const string DestinationKey = "dest";
     private static Action<ShellDestination>? _onActivated;
-    private static DispatcherQueue? _dispatcher;
+    private static IUiDispatcher? _dispatcher;
     private static bool _registered;
 
     /// <summary>Call once on the UI thread during launch, before any toast is shown.</summary>
@@ -25,7 +25,7 @@ public static class ToastService
             return;
 
         _onActivated = onActivated;
-        _dispatcher = DispatcherQueue.GetForCurrentThread();
+        _dispatcher = DispatcherQueueUiDispatcher.ForCurrentThread();
 
         try
         {
