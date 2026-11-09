@@ -47,6 +47,50 @@ public sealed partial class ShellPage : Page
 
     public ShellViewModel ViewModel { get; }
 
+    /// <summary>The bar the window adopts as its title bar when the shell is a standard window.</summary>
+    public UIElement TitleBarElement => SimpleTitleBar;
+
+    /// <summary>Raised when the title bar's "return to flyout" button is pressed (standard window only).</summary>
+    public event EventHandler? ReturnToFlyoutRequested;
+
+    /// <summary>
+    /// In the standard window the title bar gains a return-to-flyout button and Quit takes the
+    /// caption buttons' shape, so the pair reads as part of the window controls beside them.
+    /// </summary>
+    public void SetWindowMode(bool window)
+    {
+        _isWindowMode = window;
+        ReturnToFlyoutButton.Visibility = window ? Visibility.Visible : Visibility.Collapsed;
+        QuitButton.Style = (Style)(window
+            ? Resources["CaptionLikeButtonStyle"]
+            : Application.Current.Resources["TitleBarButtonStyle"]);
+    }
+
+    /// <summary>Raised when the flyout's title bar (or its icon) is double-tapped: the user wants the standard window.</summary>
+    public event EventHandler? ExpandRequested;
+
+    private bool _isWindowMode;
+
+    private void TitleBar_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        // As a window the caption belongs to the system (double-click maximizes); only the flyout expands.
+        if (_isWindowMode)
+            return;
+
+        // Double-tapping one of the header buttons is not a double-tap on the bar.
+        for (DependencyObject? node = e.OriginalSource as DependencyObject; node is not null && node != sender; node = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(node))
+        {
+            if (node is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase)
+                return;
+        }
+
+        e.Handled = true;
+        ExpandRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ReturnToFlyoutButton_Click(object sender, RoutedEventArgs e) =>
+        ReturnToFlyoutRequested?.Invoke(this, EventArgs.Empty);
+
     public ShellPage()
     {
         InitializeComponent();
@@ -69,7 +113,84 @@ public sealed partial class ShellPage : Page
         Tabs.AddHandler(PointerPressedEvent, new PointerEventHandler(Tabs_PointerPressed), handledEventsToo: true);
 
         ActualThemeChanged += (_, _) => UpdateTitleBarIcon();
+
+        ViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ShellViewModel.ContentMaxWidth))
+                ContentColumn.MaxWidth = ViewModel.ContentMaxWidth;
+        };
+        _navigation.NavigationChanged += (_, _) => UpdateRailSelection();
     }
+
+    /// <summary>Re-evaluates the breakpoint whenever the (resizable) flyout changes width.</summary>
+    private void Page_SizeChanged(object sender, SizeChangedEventArgs e) => ViewModel.ApplyWidth(e.NewSize.Width);
+
+    /// <summary>Marks the rail button for the page being shown, like bsky.app's bold current item.</summary>
+    private void UpdateRailSelection()
+    {
+        object? page = ContentFrame.Content;
+        Button? active = page switch
+        {
+            TimelinePage => RailHomeButton,
+            ExplorePage or SearchPage => RailExploreButton,
+            NotificationsPage => RailNotificationsButton,
+            MessagesPage or ConversationPage => RailMessagesButton,
+            ProfilePage { ViewModel.IsSelf: true } => RailProfileButton,
+            SettingsPage => RailSettingsButton,
+            _ => null,
+        };
+
+        foreach (Button button in new[] { RailHomeButton, RailExploreButton, RailNotificationsButton, RailMessagesButton, RailProfileButton, RailSettingsButton })
+        {
+            bool isActive = button == active;
+            button.FontWeight = isActive ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Normal;
+            if (isActive)
+                button.Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"];
+            else
+                button.ClearValue(Control.ForegroundProperty);
+        }
+    }
+
+    private void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_navigation.Frame?.Content is not SettingsPage)
+            NavigateTo(ShellDestination.Settings);
+    }
+
+    private void SidebarSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        if (SearchQueryPolicy.Normalize(args.QueryText).Length == 0)
+            return;
+
+        SearchPage.Open(args.QueryText);
+        sender.Text = string.Empty;
+    }
+
+    /// <summary>The sidebar list is the same feeds as the tab row: picking one selects that tab.</summary>
+    private void SidebarFeeds_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is not FeedTabItem feed)
+            return;
+
+        if (!feed.Equals(Tabs.SelectedItem))
+        {
+            Tabs.SelectedItem = feed; // Tabs_SelectionChanged does the rest
+            return;
+        }
+
+        // Already the selected feed: from another page this goes back to it, on the timeline it refreshes.
+        if (_navigation.Frame?.Content is TimelinePage timeline)
+        {
+            timeline.ScrollToTop();
+            _ = TimelineViewModel.Instance.RefreshAsync();
+        }
+        else
+        {
+            NavigateTo(ShellDestination.Home);
+        }
+    }
+
+    private void SyncSidebarSelection() => SidebarFeeds.SelectedItem = Tabs.SelectedItem;
 
     /// <summary>
     /// The title bar icon needs the opposite tone from the app's theme to stay visible against
@@ -308,7 +429,10 @@ public sealed partial class ShellPage : Page
     private void SelectTab(int index)
     {
         if (Tabs.SelectedIndex == index)
+        {
+            SyncSidebarSelection();
             return;
+        }
 
         _suppressTabNavigation = true;
         try
@@ -319,10 +443,14 @@ public sealed partial class ShellPage : Page
         {
             _suppressTabNavigation = false;
         }
+
+        SyncSidebarSelection();
     }
 
     private void Tabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        SyncSidebarSelection();
+
         if (_suppressTabNavigation || Tabs.SelectedItem is not FeedTabItem feed)
             return;
 

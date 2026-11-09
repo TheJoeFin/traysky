@@ -2,6 +2,7 @@ APPBARDATA
 DwmSetWindowAttribute
 DWM_WINDOW_CORNER_PREFERENCE
 GetActiveWindow
+GetAsyncKeyState
 GetAncestor
 GetClientRect
 GetClassName

@@ -78,6 +78,8 @@
     <Compile Include="..\Traysky\Services\ChatNotificationPreferencePolicy.cs" Link="Services\ChatNotificationPreferencePolicy.cs" />
     <Compile Include="..\Traysky\Services\ThreadFlattenPolicy.cs" Link="Services\ThreadFlattenPolicy.cs" />
     <Compile Include="..\Traysky\Services\EmbedImageLayoutPolicy.cs" Link="Services\EmbedImageLayoutPolicy.cs" />
+    <Compile Include="..\Traysky\Services\ShellLayoutPolicy.cs" Link="Services\ShellLayoutPolicy.cs" />
+    <Compile Include="..\Traysky\Services\WindowBoundsPolicy.cs" Link="Services\WindowBoundsPolicy.cs" />
   </ItemGroup>
 
 </Project>

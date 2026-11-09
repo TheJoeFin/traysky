@@ -25,8 +25,15 @@ namespace Traysky.Controls;
 /// </summary>
 public sealed partial class TrayPopupWindow : WindowEx
 {
-    private const int PopupWidth = 420;
-    private const int PopupHeight = 600;
+    /// <summary>How long after the last resize/move event before the window settles: saves its geometry and, if a
+    /// breakpoint was crossed, swaps between flyout and standard window.</summary>
+    private static readonly TimeSpan SettleDelay = TimeSpan.FromMilliseconds(250);
+
+    private const int VK_LBUTTON = 0x01;
+
+    /// <summary>The standard window's size, in DIPs, the first time the shell becomes one without a saved position.</summary>
+    private const int DefaultWindowWidth = 1000;
+    private const int DefaultWindowHeight = 720;
 
     private const int GWL_STYLE = -16;
     private const int GWL_EXSTYLE = -20;
@@ -60,12 +67,22 @@ public sealed partial class TrayPopupWindow : WindowEx
     private readonly DispatcherQueueTimer _hideTimer;
     private readonly DispatcherQueueTimer _animationTimer;
     private readonly DispatcherQueueTimer _trimTimer;
+    private readonly DispatcherQueueTimer _settleTimer;
     private readonly Stopwatch _animationClock = new();
     private readonly HWND _hwnd;
     private readonly UISettings _uiSettings = new();
     private ShellPage? _shellPage;
     private bool _isShowing;
     private bool _isPopupVisible;
+
+    /// <summary>
+    /// True while the shell is a standard window (title bar, taskbar/Alt-Tab entry, no light-dismiss,
+    /// no slide animation) instead of the tray flyout. Entered by widening past the first breakpoint.
+    /// </summary>
+    private bool _isWindowMode;
+
+    /// <summary>Only the app's exit path really closes the window; the title bar's close button hides it to the tray.</summary>
+    private bool _allowClose;
     private DateTime _lastDismissedAtUtc = DateTime.MinValue;
 
     // Animation state, mirroring SongChangePopupWindow: _baseY is the popup's
@@ -120,6 +137,228 @@ public sealed partial class TrayPopupWindow : WindowEx
                 MemoryTrimService.Trim();
         };
         _trimTimer.Start();
+
+        // Debounced: a drag raises many events. Once it settles, remember the geometry and decide
+        // whether the width now calls for a different kind of window.
+        _settleTimer = DispatcherQueue.CreateTimer();
+        _settleTimer.Interval = SettleDelay;
+        _settleTimer.IsRepeating = false;
+        _settleTimer.Tick += (_, _) => OnGeometrySettled();
+        AppWindow.Changed += (_, args) =>
+        {
+            // Position changes only matter for the standard window; the flyout's own slide animation moves it constantly.
+            if (_isPopupVisible && (args.DidSizeChange || (_isWindowMode && args.DidPositionChange)))
+            {
+                _settleTimer.Stop();
+                _settleTimer.Start();
+            }
+        };
+
+        // The title bar's close button (and Alt+F4) send the window back to the tray rather than ending the app.
+        AppWindow.Closing += (_, args) =>
+        {
+            if (_allowClose)
+                return;
+
+            args.Cancel = true;
+            HidePopup();
+        };
+    }
+
+    /// <summary>Closes for real. Used only when the app exits.</summary>
+    public void CloseForExit()
+    {
+        _allowClose = true;
+        Close();
+    }
+
+    private double ClientWidthInDips()
+    {
+        uint dpi = PInvoke.GetDpiForWindow(_hwnd);
+        if (dpi == 0)
+            dpi = 96;
+        return AppWindow.ClientSize.Width * 96.0 / dpi;
+    }
+
+    private OverlappedPresenter Presenter => (OverlappedPresenter)AppWindow.Presenter;
+
+    private void OnGeometrySettled()
+    {
+        if (!_isPopupVisible || Presenter.State == OverlappedPresenterState.Minimized)
+            return;
+
+        // Swapping the window frame mid-drag would pull the rug out from under the user's mouse.
+        if (PInvoke.GetAsyncKeyState(VK_LBUTTON) < 0)
+        {
+            _settleTimer.Start();
+            return;
+        }
+
+        bool shouldBeWindow = ShellLayoutPolicy.ShouldBeWindow(ClientWidthInDips(), _isWindowMode);
+        if (shouldBeWindow && !_isWindowMode)
+        {
+            BecomeWindow();
+            return;
+        }
+
+        if (!shouldBeWindow && _isWindowMode)
+        {
+            BecomeFlyout(fromResize: true);
+            return;
+        }
+
+        SaveGeometry();
+    }
+
+    /// <summary>Remembers the window's bounds (standard window) or the flyout's size in DIPs (flyout).</summary>
+    private void SaveGeometry()
+    {
+        if (_isWindowMode)
+        {
+            // A maximized or minimized window's bounds are not the size the user chose.
+            if (Presenter.State == OverlappedPresenterState.Restored)
+                SettingsService.WindowBounds = new PixelRect(AppWindow.Position.X, AppWindow.Position.Y, AppWindow.Size.Width, AppWindow.Size.Height);
+            return;
+        }
+
+        uint dpi = PInvoke.GetDpiForWindow(_hwnd);
+        if (dpi == 0)
+            dpi = 96;
+
+        SettingsService.PopupSize = (
+            (int)Math.Round(AppWindow.Size.Width * 96.0 / dpi),
+            (int)Math.Round(AppWindow.Size.Height * 96.0 / dpi));
+    }
+
+    /// <summary>Flyout to standard window, in place: the window keeps the size and position the user dragged it to.</summary>
+    private void BecomeWindow()
+    {
+        _animationTimer.Stop();
+        _animationClock.Reset();
+        _isHiding = false;
+        ApplyMode(window: true);
+        SettingsService.PopupIsWindow = true;
+        SaveGeometry();
+        Activate();
+    }
+
+    /// <summary>
+    /// The flyout's title bar was double-tapped: become the standard window at its remembered
+    /// bounds (or the default size, centered), the same form that widening past the breakpoint gives.
+    /// </summary>
+    private void ExpandToWindow()
+    {
+        _settleTimer.Stop();
+        _animationTimer.Stop();
+        _animationClock.Reset();
+        _isHiding = false;
+
+        SaveGeometry(); // the flyout's size, while it is still one
+        SettingsService.PopupIsWindow = true;
+
+        // Resize first, then swap the frame: the title bar reads the caption buttons' inset when the
+        // mode changes, and it has to see the final width or the header buttons end up beneath them.
+        PlaceWindow();
+        ApplyMode(window: true);
+        BringToFront();
+
+        // Once the new frame has been laid out, hand the bar over again so it re-reads the inset.
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_isWindowMode && _shellPage is not null)
+                SetTitleBar(_shellPage.TitleBarElement);
+        });
+    }
+
+    /// <summary>
+    /// Standard window back to the tray flyout, next to the tray icon. <paramref name="fromResize"/>:
+    /// the user narrowed the window, so the size they chose becomes the flyout's; otherwise (the
+    /// title bar button) the flyout keeps its remembered compact size.
+    /// </summary>
+    private void BecomeFlyout(bool fromResize)
+    {
+        // A maximized window has to be restored before it can be placed as a flyout.
+        if (Presenter.State != OverlappedPresenterState.Restored)
+            Presenter.Restore();
+
+        SaveGeometry(); // the window's bounds, while it is still one
+        ApplyMode(window: false);
+        SettingsService.PopupIsWindow = false;
+
+        if (fromResize)
+        {
+            uint dpi = PInvoke.GetDpiForWindow(_hwnd);
+            if (dpi == 0)
+                dpi = 96;
+            SettingsService.PopupSize = (
+                (int)Math.Round(AppWindow.Size.Width * 96.0 / dpi),
+                (int)Math.Round(AppWindow.Size.Height * 96.0 / dpi));
+        }
+
+        WindowPlacementService.ClearPointerAnchor();
+        _isShowing = true;
+        PlaceFlyout();
+        Activate();
+        PInvoke.SetForegroundWindow(_hwnd);
+    }
+
+    /// <summary>
+    /// Switches between the borderless tray flyout and a standard window: a real title bar (the
+    /// shell's WinUI <c>TitleBar</c> becomes it), minimize/maximize, a taskbar and Alt-Tab entry,
+    /// not always-on-top, and none of the flyout's per-window alpha fade.
+    /// </summary>
+    private void ApplyMode(bool window)
+    {
+        _isWindowMode = window;
+        _shellPage?.SetWindowMode(window);
+        OverlappedPresenter presenter = Presenter;
+
+        if (window)
+        {
+            presenter.IsAlwaysOnTop = false;
+            presenter.IsMaximizable = true;
+            presenter.IsMinimizable = true;
+            presenter.SetBorderAndTitleBar(true, true);
+            AppWindow.IsShownInSwitchers = true;
+
+            ExtendsContentIntoTitleBar = true;
+            if (_shellPage is not null)
+                SetTitleBar(_shellPage.TitleBarElement);
+
+            SetLayered(false);
+        }
+        else
+        {
+            ExtendsContentIntoTitleBar = false;
+            SetTitleBar(null);
+
+            presenter.IsMaximizable = false;
+            presenter.IsMinimizable = false;
+            presenter.IsAlwaysOnTop = true;
+            presenter.SetBorderAndTitleBar(true, false);
+            AppWindow.IsShownInSwitchers = false;
+
+            SetLayered(true);
+        }
+    }
+
+    /// <summary>WS_EX_LAYERED enables the per-window alpha the flyout's fade drives; a standard window is opaque and does without.</summary>
+    private void SetLayered(bool layered)
+    {
+        int exStyle = PInvoke.GetWindowLong(_hwnd, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
+        int updated = layered ? exStyle | WS_EX_LAYERED : exStyle & ~WS_EX_LAYERED;
+        if (updated != exStyle)
+            _ = PInvoke.SetWindowLong(_hwnd, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, updated);
+    }
+
+    /// <summary>Brings an already-visible standard window to the front, restoring it if minimized.</summary>
+    private void BringToFront()
+    {
+        if (Presenter.State == OverlappedPresenterState.Minimized)
+            Presenter.Restore();
+
+        Activate();
+        PInvoke.SetForegroundWindow(_hwnd);
     }
 
     private void OnColorValuesChanged(UISettings sender, object args)
@@ -154,6 +393,10 @@ public sealed partial class TrayPopupWindow : WindowEx
 
             ShowNearAnchor();
         }
+        else if (_isWindowMode)
+        {
+            BringToFront();
+        }
 
         _shellPage?.NavigateTo(destination, then);
     }
@@ -171,7 +414,11 @@ public sealed partial class TrayPopupWindow : WindowEx
     {
         if (_isPopupVisible)
         {
-            HidePopup();
+            // A standard window doesn't go away on a tray click (it doesn't auto-hide); the click brings it forward.
+            if (_isWindowMode)
+                BringToFront();
+            else
+                HidePopup();
             return;
         }
 
@@ -181,6 +428,41 @@ public sealed partial class TrayPopupWindow : WindowEx
         ShowNearAnchor();
     }
 
+    /// <summary>Positions the flyout next to the tray icon at its remembered size and plays the slide-in.</summary>
+    private void PlaceFlyout()
+    {
+        (int width, int height) = SettingsService.PopupSize;
+        WindowPlacementService.PositionWindowNearAnchor(this, width, height);
+        _baseX = AppWindow.Position.X;
+        _baseY = AppWindow.Position.Y;
+
+        uint dpi = PInvoke.GetDpiForWindow(_hwnd);
+        if (dpi == 0)
+            dpi = 96;
+        PlayShowAnimation(dpi);
+    }
+
+    /// <summary>Puts the standard window where it was last left, pulled onto a monitor that still exists.</summary>
+    private void PlaceWindow()
+    {
+        uint dpi = PInvoke.GetDpiForWindow(_hwnd);
+        if (dpi == 0)
+            dpi = 96;
+
+        PixelRect wanted = SettingsService.WindowBounds
+            ?? new PixelRect(0, 0, (int)Math.Ceiling(DefaultWindowWidth * dpi / 96.0), (int)Math.Ceiling(DefaultWindowHeight * dpi / 96.0));
+
+        DisplayArea display = DisplayArea.GetFromRect(new RectInt32(wanted.X, wanted.Y, wanted.Width, wanted.Height), DisplayAreaFallback.Nearest);
+        RectInt32 work = display.WorkArea;
+        PixelRect workArea = new(work.X, work.Y, work.Width, work.Height);
+
+        PixelRect fitted = SettingsService.WindowBounds is null
+            ? WindowBoundsPolicy.Centered(wanted.Width, wanted.Height, workArea)
+            : WindowBoundsPolicy.Fit(wanted, workArea);
+
+        AppWindow.MoveAndResize(new RectInt32(fitted.X, fitted.Y, fitted.Width, fitted.Height));
+    }
+
     public void ShowNearAnchor()
     {
         EnsureShellPage();
@@ -188,8 +470,17 @@ public sealed partial class TrayPopupWindow : WindowEx
         // Back to the root on each open, so the popup never reopens deep in a thread.
         _ = _shellPage?.ResetNavigationAsync();
 
+        // Reopen in whichever form it was left in.
+        bool asWindow = SettingsService.PopupIsWindow;
+        if (asWindow != _isWindowMode)
+            ApplyMode(asWindow);
+
         // Position before showing so the window never flashes at a stale location.
-        WindowPlacementService.PositionWindowNearAnchor(this, PopupWidth, PopupHeight);
+        if (asWindow)
+            PlaceWindow();
+        else
+            WindowPlacementService.PositionWindowNearAnchor(this, SettingsService.PopupSize.Width, SettingsService.PopupSize.Height);
+
         _baseX = AppWindow.Position.X;
         _baseY = AppWindow.Position.Y;
 
@@ -198,12 +489,17 @@ public sealed partial class TrayPopupWindow : WindowEx
         _isShowing = true;
         _isPopupVisible = true;
 
-        uint dpi = PInvoke.GetDpiForWindow(_hwnd);
-        if (dpi == 0)
-            dpi = 96;
-        PlayShowAnimation(dpi);
+        if (!asWindow)
+        {
+            uint dpi = PInvoke.GetDpiForWindow(_hwnd);
+            if (dpi == 0)
+                dpi = 96;
+            PlayShowAnimation(dpi);
+        }
 
         this.Show();
+        if (Presenter.State == OverlappedPresenterState.Minimized)
+            Presenter.Restore();
         Activate();
         PInvoke.SetForegroundWindow(_hwnd);
 
@@ -216,7 +512,9 @@ public sealed partial class TrayPopupWindow : WindowEx
     }
 
     /// <summary>Where the popup rests once its slide animation settles, in physical pixels.</summary>
-    public PixelRect RestingBounds => new(_baseX, _baseY, AppWindow.Size.Width, AppWindow.Size.Height);
+    public PixelRect RestingBounds => _isWindowMode
+        ? new(AppWindow.Position.X, AppWindow.Position.Y, AppWindow.Size.Width, AppWindow.Size.Height)
+        : new(_baseX, _baseY, AppWindow.Size.Width, AppWindow.Size.Height);
 
     public void HidePopup()
     {
@@ -229,6 +527,20 @@ public sealed partial class TrayPopupWindow : WindowEx
 
         if (!_isPopupVisible)
             return;
+
+        _settleTimer.Stop();
+
+        if (_isWindowMode)
+        {
+            // No slide-out for a standard window: remember where it was, and go.
+            SaveGeometry();
+            _isPopupVisible = false;
+            _lastDismissedAtUtc = DateTime.UtcNow;
+            PopupHidden?.Invoke(this, EventArgs.Empty);
+            this.Hide();
+            _trimTimer.Start();
+            return;
+        }
 
         _isPopupVisible = false;
         _lastDismissedAtUtc = DateTime.UtcNow;
@@ -335,6 +647,17 @@ public sealed partial class TrayPopupWindow : WindowEx
         if (_shellPage is null)
         {
             _shellPage = new ShellPage();
+            _shellPage.SetWindowMode(_isWindowMode);
+            _shellPage.ExpandRequested += (_, _) =>
+            {
+                if (!_isWindowMode && _isPopupVisible)
+                    ExpandToWindow();
+            };
+            _shellPage.ReturnToFlyoutRequested += (_, _) =>
+            {
+                if (_isWindowMode && _isPopupVisible)
+                    BecomeFlyout(fromResize: false);
+            };
             ShellHost.Content = _shellPage;
         }
     }
@@ -390,7 +713,8 @@ public sealed partial class TrayPopupWindow : WindowEx
             return;
         }
 
-        if (_isShowing || !_isPopupVisible)
+        // A standard window stays up behind other windows; only the flyout light-dismisses.
+        if (_isWindowMode || _isShowing || !_isPopupVisible)
             return;
 
         _hideTimer.Stop();
@@ -454,6 +778,8 @@ public sealed partial class TrayPopupWindow : WindowEx
         if (_shellPage?.TryCloseImageOverlay() == true)
             return;
 
-        HidePopup();
+        // Escape dismisses the flyout, but doesn't close a standard window out from under you.
+        if (!_isWindowMode)
+            HidePopup();
     }
 }

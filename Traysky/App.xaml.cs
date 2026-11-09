@@ -672,7 +672,7 @@ public partial class App : Application
                 ToastService.Unregister();
             }
 
-            _trayPopupWindow?.Close();
+            _trayPopupWindow?.CloseForExit();
             VideoPopoutWindow.CloseCurrent();
             ProfilePreviewWindow.CloseCurrent();
 

@@ -49,6 +49,45 @@ public sealed partial class ShellViewModel : ObservableObject
 
     public bool IsSignedIn => _session.IsSignedIn;
 
+    private ShellLayoutKind _layout = ShellLayoutKind.Compact;
+
+    /// <summary>Which breakpoint the flyout's current width falls in.</summary>
+    public ShellLayoutKind Layout => _layout;
+
+    /// <summary>Feeds the page's width in; raises the layout-derived properties only when a breakpoint is crossed.</summary>
+    public void ApplyWidth(double width)
+    {
+        ShellLayoutKind kind = ShellLayoutPolicy.ForWidth(width);
+        if (kind == _layout)
+            return;
+
+        _layout = kind;
+        OnPropertyChanged(nameof(Layout));
+        OnLayoutDependentChanged();
+    }
+
+    /// <summary>The left nav rail. Needs an account: signed out, the title bar's Settings button is all there is to show.</summary>
+    public bool ShowRail => _session.IsSignedIn && ShellLayoutPolicy.ShowsRail(_layout);
+
+    /// <summary>The title bar's nav buttons, which the rail replaces.</summary>
+    public bool ShowHeaderNav => !ShowRail;
+
+    public bool ShowRailLabels => ShellLayoutPolicy.RailShowsLabels(_layout);
+
+    /// <summary>The right column (search and feed list).</summary>
+    public bool ShowSidebar => _session.IsSignedIn && ShellLayoutPolicy.ShowsSidebar(_layout);
+
+    public double ContentMaxWidth => ShellLayoutPolicy.MaxContentWidth(_layout);
+
+    private void OnLayoutDependentChanged()
+    {
+        OnPropertyChanged(nameof(ShowRail));
+        OnPropertyChanged(nameof(ShowHeaderNav));
+        OnPropertyChanged(nameof(ShowRailLabels));
+        OnPropertyChanged(nameof(ShowSidebar));
+        OnPropertyChanged(nameof(ContentMaxWidth));
+    }
+
     /// <summary>The account's pinned feeds, in profile order - what the feed tab row shows.</summary>
     public ObservableCollection<FeedTabItem> Feeds => _feeds.Tabs;
 
@@ -81,6 +120,7 @@ public sealed partial class ShellViewModel : ObservableObject
             OnPropertyChanged(nameof(ShowTabs));
             OnPropertyChanged(nameof(ShowHome));
             OnPropertyChanged(nameof(ShowMessages));
+            OnLayoutDependentChanged();
         }
     }
 

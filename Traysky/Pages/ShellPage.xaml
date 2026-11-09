@@ -9,20 +9,60 @@
     Loaded="Page_Loaded"
     mc:Ignorable="d">
 
-    <Grid>
+    <Page.Resources>
+        <!--  Left-rail nav button: icon always, label only at the VeryWide breakpoint.  -->
+        <Style x:Key="RailButtonStyle" BasedOn="{StaticResource DefaultButtonStyle}" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="MinWidth" Value="48" />
+            <Setter Property="MinHeight" Value="48" />
+            <Setter Property="Padding" Value="13,0" />
+            <Setter Property="CornerRadius" Value="24" />
+        </Style>
+
+        <!--  Title bar button that sits with the caption buttons in the standard window: full bar height, square, caption-button width.  -->
+        <Style x:Key="CaptionLikeButtonStyle" BasedOn="{StaticResource DefaultButtonStyle}" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinWidth" Value="46" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+        </Style>
+    </Page.Resources>
+
+    <!--
+        Columns: left spacer | rail | page column | sidebar | right spacer. The spacers are almost-zero stars so the page
+        column takes the width until it hits its MaxWidth (set in code), after which the spare width splits between the
+        spacers and the whole arrangement stays centred, as on bsky.app.
+    -->
+    <Grid SizeChanged="Page_SizeChanged">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="0.001*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition x:Name="ContentColumn" Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="0.001*" />
+        </Grid.ColumnDefinitions>
 
         <TitleBar
             x:Name="SimpleTitleBar"
             Title="Traysky"
+            Grid.ColumnSpan="5"
             BackRequested="TitleBar_BackRequested"
+            DoubleTapped="TitleBar_DoubleTapped"
             IsBackButtonVisible="{x:Bind ViewModel.CanGoBack, Mode=OneWay}">
             <TitleBar.RightHeader>
-                <StackPanel Orientation="Horizontal" Spacing="2">
+                <StackPanel VerticalAlignment="Stretch" Orientation="Horizontal" Spacing="2">
+                    <!--  The rail takes these over once the flyout is wide enough.  -->
+                    <StackPanel Orientation="Horizontal" Spacing="2" Visibility="{x:Bind ViewModel.ShowHeaderNav, Mode=OneWay}">
                     <Button
                         x:Name="HomeButton"
                         AutomationProperties.AutomationId="HomeButton"
@@ -106,6 +146,18 @@
                         ToolTipService.ToolTip="Profile and settings">
                         <FontIcon FontSize="14" Glyph="&#xEF58;" />
                     </Button>
+                    </StackPanel>
+                    <!--  Standard window only: shrink back to the tray flyout. Sits beside Quit like another caption button.  -->
+                    <Button
+                        x:Name="ReturnToFlyoutButton"
+                        AutomationProperties.AutomationId="ReturnToFlyoutButton"
+                        AutomationProperties.Name="Return to flyout"
+                        Click="ReturnToFlyoutButton_Click"
+                        Style="{StaticResource CaptionLikeButtonStyle}"
+                        ToolTipService.ToolTip="Return to flyout"
+                        Visibility="Collapsed">
+                        <FontIcon FontSize="12" Glyph="&#xE73F;" />
+                    </Button>
                     <Button
                         x:Name="QuitButton"
                         AutomationProperties.AutomationId="QuitButton"
@@ -119,6 +171,139 @@
             </TitleBar.RightHeader>
         </TitleBar>
 
+        <!--  Left rail (Medium and wider): the nav buttons the title bar carries in the compact flyout.  -->
+        <StackPanel
+            x:Name="Rail"
+            Grid.Row="1"
+            Grid.Column="1"
+            Margin="8,8,8,8"
+            Spacing="4"
+            Visibility="{x:Bind ViewModel.ShowRail, Mode=OneWay}">
+            <Button
+                x:Name="RailHomeButton"
+                AutomationProperties.AutomationId="RailHomeButton"
+                AutomationProperties.Name="Home"
+                Click="HomeButton_Click"
+                Style="{StaticResource RailButtonStyle}"
+                ToolTipService.ToolTip="Home (Ctrl+1)">
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <FontIcon FontSize="22" Glyph="&#xE80F;" />
+                    <TextBlock VerticalAlignment="Center" FontSize="18" Text="Home" Visibility="{x:Bind ViewModel.ShowRailLabels, Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+            <Button
+                x:Name="RailExploreButton"
+                AutomationProperties.AutomationId="RailExploreButton"
+                AutomationProperties.Name="Explore"
+                Click="ExploreButton_Click"
+                Style="{StaticResource RailButtonStyle}"
+                ToolTipService.ToolTip="Explore">
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <FontIcon FontSize="22" Glyph="&#xE721;" />
+                    <TextBlock VerticalAlignment="Center" FontSize="18" Text="Explore" Visibility="{x:Bind ViewModel.ShowRailLabels, Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+            <Grid>
+                <Button
+                    x:Name="RailNotificationsButton"
+                    AutomationProperties.AutomationId="RailNotificationsButton"
+                    AutomationProperties.Name="Notifications"
+                    Click="NotificationsButton_Click"
+                    Style="{StaticResource RailButtonStyle}"
+                    ToolTipService.ToolTip="Notifications (Ctrl+2)">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <FontIcon FontSize="22" Glyph="&#xEA8F;" />
+                        <TextBlock VerticalAlignment="Center" FontSize="18" Text="Notifications" Visibility="{x:Bind ViewModel.ShowRailLabels, Mode=OneWay}" />
+                    </StackPanel>
+                </Button>
+                <InfoBadge
+                    MinWidth="14"
+                    MinHeight="14"
+                    Margin="0,2,2,0"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    IsHitTestVisible="False"
+                    Style="{StaticResource AttentionValueInfoBadgeStyle}"
+                    Visibility="{x:Bind ViewModel.HasUnread, Mode=OneWay}"
+                    Value="{x:Bind ViewModel.UnreadCount, Mode=OneWay}" />
+            </Grid>
+            <Grid Visibility="{x:Bind ViewModel.ShowMessages, Mode=OneWay}">
+                <Button
+                    x:Name="RailMessagesButton"
+                    AutomationProperties.AutomationId="RailMessagesButton"
+                    AutomationProperties.Name="Messages"
+                    Click="MessagesButton_Click"
+                    Style="{StaticResource RailButtonStyle}"
+                    ToolTipService.ToolTip="Messages (Ctrl+3)">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <FontIcon FontSize="22" Glyph="&#xE8BD;" />
+                        <TextBlock VerticalAlignment="Center" FontSize="18" Text="Chat" Visibility="{x:Bind ViewModel.ShowRailLabels, Mode=OneWay}" />
+                    </StackPanel>
+                </Button>
+                <InfoBadge
+                    MinWidth="14"
+                    MinHeight="14"
+                    Margin="0,2,2,0"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    IsHitTestVisible="False"
+                    Style="{StaticResource AttentionValueInfoBadgeStyle}"
+                    Visibility="{x:Bind ViewModel.HasUnreadMessages, Mode=OneWay}"
+                    Value="{x:Bind ViewModel.UnreadMessageCount, Mode=OneWay}" />
+            </Grid>
+            <Button
+                x:Name="RailProfileButton"
+                AutomationProperties.AutomationId="RailProfileButton"
+                AutomationProperties.Name="Profile"
+                Click="AccountButton_Click"
+                Style="{StaticResource RailButtonStyle}"
+                ToolTipService.ToolTip="Profile">
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <FontIcon FontSize="22" Glyph="&#xEF58;" />
+                    <TextBlock VerticalAlignment="Center" FontSize="18" Text="Profile" Visibility="{x:Bind ViewModel.ShowRailLabels, Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+            <Button
+                x:Name="RailSettingsButton"
+                AutomationProperties.AutomationId="RailSettingsButton"
+                AutomationProperties.Name="Settings"
+                Click="SettingsButton_Click"
+                Style="{StaticResource RailButtonStyle}"
+                ToolTipService.ToolTip="Settings">
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <FontIcon FontSize="22" Glyph="&#xE713;" />
+                    <TextBlock VerticalAlignment="Center" FontSize="18" Text="Settings" Visibility="{x:Bind ViewModel.ShowRailLabels, Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+            <Button
+                x:Name="RailNewPostButton"
+                Margin="0,12,0,0"
+                AutomationProperties.AutomationId="RailNewPostButton"
+                AutomationProperties.Name="New post"
+                Click="NewPostButton_Click"
+                CornerRadius="24"
+                MinHeight="48"
+                MinWidth="48"
+                Padding="13,0"
+                Style="{StaticResource AccentButtonStyle}"
+                ToolTipService.ToolTip="New post (Ctrl+N)">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <FontIcon FontSize="20" Glyph="&#xE932;" />
+                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="New post" Visibility="{x:Bind ViewModel.ShowRailLabels, Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+
+        <!--  The page column: feed tabs over the frame. Capped at ContentMaxWidth once the flyout is wide, and then centred.  -->
+        <Grid
+            x:Name="ContentHost"
+            Grid.Row="1"
+            Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
         <!--
             Feed tabs: the account's own pinned feeds (order and visibility mirror bsky.app), only while signed in and on the
             timeline. A plain ListView rather than CommunityToolkit's Segmented: Segmented's sliding-selection-indicator
@@ -130,7 +315,7 @@
             x:Name="Tabs"
             AutomationProperties.AutomationId="FeedTabs"
             AutomationProperties.Name="Feeds"
-            Grid.Row="1"
+            Grid.Row="0"
             Margin="12,4,12,6"
             HorizontalAlignment="Stretch"
             IsItemClickEnabled="True"
@@ -169,13 +354,61 @@
 
         <Frame
             x:Name="ContentFrame"
-            Grid.Row="2"
+            Grid.Row="1"
             Margin="0" />
+        </Grid>
+
+        <!--  Right column (Wide and up): search, and the pinned feeds as a list.  -->
+        <Grid
+            x:Name="Sidebar"
+            Grid.Row="1"
+            Grid.Column="3"
+            Width="300"
+            Margin="16,8,0,0"
+            RowSpacing="8"
+            Visibility="{x:Bind ViewModel.ShowSidebar, Mode=OneWay}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <AutoSuggestBox
+                x:Name="SidebarSearchBox"
+                AutomationProperties.AutomationId="SidebarSearchBox"
+                PlaceholderText="Search"
+                QueryIcon="Find"
+                QuerySubmitted="SidebarSearchBox_QuerySubmitted" />
+            <ListView
+                x:Name="SidebarFeeds"
+                Grid.Row="1"
+                AutomationProperties.AutomationId="SidebarFeeds"
+                AutomationProperties.Name="Feeds"
+                IsItemClickEnabled="True"
+                ItemClick="SidebarFeeds_ItemClick"
+                ItemsSource="{x:Bind ViewModel.Feeds, Mode=OneWay}"
+                SelectionMode="Single">
+                <ListView.ItemContainerStyle>
+                    <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
+                        <Setter Property="CornerRadius" Value="8" />
+                        <Setter Property="Padding" Value="12,8" />
+                        <Setter Property="MinHeight" Value="0" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="items:FeedTabItem">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <FontIcon FontSize="16" Glyph="{x:Bind IconGlyph}" />
+                            <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Grid>
 
         <!--  Full-size image viewer: covers the whole shell, dismissed by tap or Escape.  -->
         <Grid
             x:Name="ImageOverlay"
-            Grid.RowSpan="3"
+            Grid.RowSpan="2"
+            Grid.ColumnSpan="5"
             Background="#E6000000"
             Tapped="ImageOverlay_Tapped"
             Visibility="Collapsed">
@@ -223,7 +456,8 @@
         <!--  Video viewer: covers the whole shell, dismissed by tapping outside the player or Escape.  -->
         <Grid
             x:Name="VideoOverlay"
-            Grid.RowSpan="3"
+            Grid.RowSpan="2"
+            Grid.ColumnSpan="5"
             x:Load="False"
             Background="#E6000000"
             Tapped="VideoOverlay_Tapped">

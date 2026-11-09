@@ -35,6 +35,20 @@ public static class SettingsService
     private const string FollowedHashtagsKey = "FollowedHashtags";
     private const string RecentSearchesKey = "RecentSearches";
     private const string ChatLogCursorKey = "ChatLogCursor";
+    private const string PopupWidthKey = "PopupWidth";
+    private const string PopupHeightKey = "PopupHeight";
+    private const string PopupIsWindowKey = "PopupIsWindow";
+    private const string WindowBoundsKey = "WindowBounds";
+
+    public const int DefaultPopupWidth = 420;
+    public const int DefaultPopupHeight = 600;
+    private const int MinPopupWidth = 360;
+    private const int MinPopupHeight = 320;
+    private const int MaxPopupDimension = 4000;
+
+    /// <summary>The flyout is the sub-breakpoint form: anything wider is a standard window (see ShellLayoutPolicy), so a
+    /// remembered flyout width never reaches it, or reopening would flip straight back into a window.</summary>
+    private const int MaxFlyoutWidth = 560;
 
     /// <summary>Raised when <see cref="PollIntervalSeconds"/> changes so the poller can re-arm its timer.</summary>
     public static event EventHandler? PollIntervalChanged;
@@ -169,6 +183,51 @@ public static class SettingsService
     {
         get => GetString(LastFeedKeyKey, "timeline");
         set => Set(LastFeedKeyKey, value ?? "timeline");
+    }
+
+    /// <summary>The flyout's size in DIPs as the user last resized it, so a wide layout survives reopening.</summary>
+    public static (int Width, int Height) PopupSize
+    {
+        get => (
+            Math.Clamp(GetInt(PopupWidthKey, DefaultPopupWidth), MinPopupWidth, MaxFlyoutWidth),
+            Math.Clamp(GetInt(PopupHeightKey, DefaultPopupHeight), MinPopupHeight, MaxPopupDimension));
+        set
+        {
+            Set(PopupWidthKey, Math.Clamp(value.Width, MinPopupWidth, MaxFlyoutWidth));
+            Set(PopupHeightKey, Math.Clamp(value.Height, MinPopupHeight, MaxPopupDimension));
+        }
+    }
+
+    /// <summary>True once the shell was last left as a standard window (it was widened past the first breakpoint).</summary>
+    public static bool PopupIsWindow
+    {
+        get => GetBool(PopupIsWindowKey, false);
+        set => Set(PopupIsWindowKey, value);
+    }
+
+    /// <summary>Where the standard window last sat, in physical pixels; null until it has been one.</summary>
+    public static PixelRect? WindowBounds
+    {
+        get
+        {
+            string[] parts = GetString(WindowBoundsKey, string.Empty).Split(',');
+            if (parts.Length == 4
+                && int.TryParse(parts[0], out int x)
+                && int.TryParse(parts[1], out int y)
+                && int.TryParse(parts[2], out int width)
+                && int.TryParse(parts[3], out int height)
+                && width > 0 && height > 0)
+            {
+                return new PixelRect(x, y, width, height);
+            }
+
+            return null;
+        }
+        set
+        {
+            if (value is { } b)
+                Set(WindowBoundsKey, $"{b.X},{b.Y},{b.Width},{b.Height}");
+        }
     }
 
     /// <summary>An unsent post survives quitting the app. Empty string clears it.</summary>

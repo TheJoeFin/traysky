@@ -72,8 +72,9 @@ internal static partial class WindowPlacementService
         // anchor's monitor, not the window: a hidden window keeps the DPI of
         // wherever it last was, which goes stale across monitor/scale changes.
         uint dpi = GetDpiForAnchor(anchor, window);
-        int physWidth = ToPhysical(width, dpi);
-        int physHeight = ToPhysical(height, dpi);
+        // A remembered size from a bigger monitor must still fit this one's work area.
+        int physWidth = System.Math.Min(ToPhysical(width, dpi), workArea.Width);
+        int physHeight = System.Math.Min(ToPhysical(height, dpi), workArea.Height);
 
         int x;
         int y;
